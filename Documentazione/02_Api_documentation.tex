@@ -1,0 +1,196 @@
+\begin{mychapter}{Documentazione Endpoints API}
+
+Questo documento presenta tutti gli endpoint implementati nell'applicativo Scalamarket. Il sistema è basato su un'architettura a microservizi, composta da: Auth Service (Porta 5001), Inventory Service (Porta 5002) e Order Service (Porta 5003). Di seguito, le tabelle sono suddivise in base ai file di routing (es. \texttt{client.py} e \texttt{admin.py}) che implementano i vari endpoint.
+
+\vspace*{0.5cm}
+
+\section*{Auth Service}
+
+\begin{table}[h!]
+\small
+\centering
+\renewcommand{\arraystretch}{1.5}
+\begin{tabularx}{\textwidth}{|c|>{\hsize=1.2\hsize}X|>{\hsize=0.9\hsize}X|>{\hsize=0.9\hsize}X|}
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/client/register}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{red!80}\textcolor{white}{\textbf{POST}} & Registra un nuovo utente cliente nel sistema. & \texttt{\{username, password\}} & 201 (Created) \newline 400 (Bad Request) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/client/login}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{red!80}\textcolor{white}{\textbf{POST}} & Autentica un cliente e ne restituisce le informazioni. & \texttt{\{username, password\}} & 200 (OK) \newline 401 (Unauthorized) \\
+\hline
+\end{tabularx}
+\caption{Auth Service - \texttt{routes/client.py}}
+\end{table}
+
+\begin{table}[h!]
+\small
+\centering
+\renewcommand{\arraystretch}{1.5}
+\begin{tabularx}{\textwidth}{|c|>{\hsize=1.2\hsize}X|>{\hsize=0.9\hsize}X|>{\hsize=0.9\hsize}X|}
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/register}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{red!80}\textcolor{white}{\textbf{POST}} & Registra un nuovo amministratore. & \texttt{\{username, password\}} & 201 (Created) \newline 400 (Bad Request) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/login}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{red!80}\textcolor{white}{\textbf{POST}} & Autentica un amministratore e ne restituisce i dati. & \texttt{\{username, password\}} & 200 (OK) \newline 401 (Unauthorized) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/users}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{blue!80}\textcolor{white}{\textbf{GET}} & Restituisce la lista di tutti gli utenti registrati. & Nessuno & 200 (OK) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/users/\textless id\textgreater}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{purple!80}\textcolor{white}{\textbf{DELETE}} & Elimina definitivamente l'utente specificato dall'ID. & Nessuno (id nell'URL) & 200 (OK) \newline 404 (Not Found) \\
+\hline
+\end{tabularx}
+\caption{Auth Service - \texttt{routes/admin.py}}
+\end{table}
+
+\clearpage
+
+\section*{Inventory Service}
+
+\begin{table}[h!]
+\small
+\centering
+\renewcommand{\arraystretch}{1.5}
+\begin{tabularx}{\textwidth}{|c|>{\hsize=1.2\hsize}X|>{\hsize=0.9\hsize}X|>{\hsize=0.9\hsize}X|}
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/client/catalog}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{blue!80}\textcolor{white}{\textbf{GET}} & Ottiene il catalogo completo degli articoli disponibili per i clienti. & Nessuno & 200 (OK) \\
+\hline
+\end{tabularx}
+\caption{Inventory Service - \texttt{routes/client.py}}
+\end{table}
+
+\begin{table}[h!]
+\small
+\centering
+\renewcommand{\arraystretch}{1.5}
+\begin{tabularx}{\textwidth}{|c|>{\hsize=1.2\hsize}X|>{\hsize=0.9\hsize}X|>{\hsize=0.9\hsize}X|}
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/article}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{red!80}\textcolor{white}{\textbf{POST}} & Aggiunge un nuovo articolo all'inventario con relative giacenze. & \texttt{\{name, description, price, quantities\}} & 201 (Created) \newline 400 (Bad Request) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/inventory}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{blue!80}\textcolor{white}{\textbf{GET}} & Visualizza lo stato globale di inventario e giacenze. & Nessuno & 200 (OK) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/inventory}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{orange!80}\textcolor{white}{\textbf{PUT}} & Aggiorna la quantità di giacenza di un articolo in una specifica filiale. & \texttt{\{article\_id, location\_id, quantity\}} & 200 (OK) \newline 404 (Not Found) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/internal/allocate}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{red!80}\textcolor{white}{\textbf{POST}} & Effettua l'allocazione logistica prelevando gli articoli dalle filiali. & \texttt{\{order\_id, items\}} & 200 (OK) \newline 400 (Bad Request) \\
+\hline
+\end{tabularx}
+\caption{Inventory Service - \texttt{routes/admin.py}}
+\end{table}
+
+\clearpage
+
+\section*{Order Service}
+
+\begin{table}[h!]
+\small
+\centering
+\renewcommand{\arraystretch}{1.5}
+\begin{tabularx}{\textwidth}{|c|>{\hsize=1.2\hsize}X|>{\hsize=0.9\hsize}X|>{\hsize=0.9\hsize}X|}
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/client/order}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{red!80}\textcolor{white}{\textbf{POST}} & Crea e piazza un nuovo ordine a nome dell'utente specificato. & \texttt{\{user\_id, items\}} & 201 (Created) \newline 400 (Bad Request) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/client/order/\textless id\textgreater}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{blue!80}\textcolor{white}{\textbf{GET}} & Traccia lo stato di uno specifico ordine in base all'ID fornito. & Nessuno (id nell'URL) & 200 (OK) \newline 404 (Not Found) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/client/order/user/\textless id\textgreater}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{blue!80}\textcolor{white}{\textbf{GET}} & Ottiene lo storico di tutti gli ordini completati e falliti dell'utente. & Nessuno (id nell'URL) & 200 (OK) \\
+\hline
+\end{tabularx}
+\caption{Order Service - \texttt{routes/client.py}}
+\end{table}
+
+\begin{table}[h!]
+\small
+\centering
+\renewcommand{\arraystretch}{1.5}
+\begin{tabularx}{\textwidth}{|c|>{\hsize=1.2\hsize}X|>{\hsize=0.9\hsize}X|>{\hsize=0.9\hsize}X|}
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/orders}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{blue!80}\textcolor{white}{\textbf{GET}} & Restituisce tutti gli ordini registrati nel sistema. & Nessuno & 200 (OK) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/logistics}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{blue!80}\textcolor{white}{\textbf{GET}} & Visualizza l'uso corrente e totale dei veicoli logistici per le filiali. & Nessuno & 200 (OK) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/logistics}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{orange!80}\textcolor{white}{\textbf{PUT}} & Aggiorna i veicoli logistici totali di una determinata filiale. & \texttt{\{location\_id, total\_vehicles\}} & 200 (OK) \newline 404 (Not Found) \\
+\hline
+\end{tabularx}
+\caption{Order Service - \texttt{routes/admin.py}}
+\end{table}
+
+\end{mychapter}

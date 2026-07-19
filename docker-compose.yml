@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_MULTIPLE_DATABASES=auth_db,inventory_db,order_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - scalamarket_network
+
+  auth_service:
+    build:
+      context: .
+      dockerfile: ./microservices/auth_service/Dockerfile
+    restart: always
+    ports:
+      - "5001:5001"
+    environment:
+      - DATABASE_URI=postgresql://admin:password@postgres:5432/auth_db
+    depends_on:
+      - postgres
+    networks:
+      - scalamarket_network
+
+  inventory_service:
+    build:
+      context: .
+      dockerfile: ./microservices/inventory_service/Dockerfile
+    restart: always
+    ports:
+      - "5002:5002"
+    environment:
+      - DATABASE_URI=postgresql://admin:password@postgres:5432/inventory_db
+    depends_on:
+      - postgres
+    networks:
+      - scalamarket_network
+
+  order_service:
+    build:
+      context: .
+      dockerfile: ./microservices/order_service/Dockerfile
+    restart: always
+    ports:
+      - "5003:5003"
+    environment:
+      - DATABASE_URI=postgresql://admin:password@postgres:5432/order_db
+    depends_on:
+      - postgres
+    networks:
+      - scalamarket_network
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    networks:
+      - scalamarket_network
+
+volumes:
+  postgres_data:
+
+networks:
+  scalamarket_network:

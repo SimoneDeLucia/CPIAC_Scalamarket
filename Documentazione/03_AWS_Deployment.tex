@@ -1,0 +1,41 @@
+\begin{mychapter}{Deployment in AWS}
+
+\begin{mysection}{Deployment tramite Infrastructure-as-Code (Terraform)}
+Al fine di automatizzare e rendere riproducibile l'infrastruttura Cloud, è stato creato uno script Terraform per effettuare il provisioning delle risorse su Amazon Web Services (AWS).
+Questa metodologia, nota come \textit{Infrastructure-as-Code} (IaC), garantisce che la configurazione del cloud sia scritta in file dichiarativi, riducendo l'errore umano.
+
+I file Terraform implementati (\texttt{main.tf}, \texttt{variables.tf}, \texttt{outputs.tf}) descrivono la seguente architettura:
+\begin{itemize}
+    \item \textbf{VPC e Subnet:} Creazione di una Virtual Private Cloud (VPC) con subnet pubbliche per bilanciatori e risorse accessibili, e subnet private per i nodi Kubernetes.
+    \item \textbf{Internet Gateway e Route Tables:} Per consentire il routing verso l'esterno.
+    \item \textbf{Security Group:} Regole firewall stateful per aprire le porte in ingresso al traffico HTTP/HTTPS e porte interne per la comunicazione intra-nodo.
+    \item \textbf{Application Load Balancer (ALB):} Per distribuire il traffico degli utenti verso i worker node.
+    \item \textbf{Istanze EC2:} Lancio di macchine virtuali basate su Amazon Machine Image (AMI) Ubuntu. Gli script \texttt{user\_data.sh} automatizzano l'installazione di Docker e delle componenti di Kubernetes (K3s/kubeadm) all'avvio.
+\end{itemize}
+
+I passi per eseguire lo script sono i seguenti:
+\begin{enumerate}
+    \item Inizializzazione dell'ambiente con \texttt{terraform init}.
+    \item Verifica del piano di esecuzione con \texttt{terraform plan}.
+    \item Creazione reale delle risorse con \texttt{terraform apply}.
+\end{enumerate}
+
+\textbf{TODO: Inserire qui uno screenshot dell'output del terminale dopo aver eseguito \texttt{terraform apply} con successo.}
+\end{mysection}
+
+\begin{mysection}{Deployment tramite AWS Management Console (GUI)}
+In alternativa, è possibile creare manualmente la stessa infrastruttura descritta al paragrafo precedente direttamente tramite il portale web di AWS. Questo approccio è utile a scopo esplorativo e didattico.
+
+Di seguito i passaggi principali:
+\begin{enumerate}
+    \item \textbf{Creazione VPC:} Dalla sezione VPC, utilizzare il wizard "VPC and more" per creare la rete, specificando il CIDR block e includendo un Internet Gateway.
+    \item \textbf{Configurazione Subnet e Route Table:} Separare logicamente le reti pubbliche e private.
+    \item \textbf{Lancio Istanze EC2:} Dalla dashboard EC2, cliccare su "Launch Instance". Selezionare un'AMI Ubuntu, scegliere una classe di istanza (es. \texttt{t2.medium}), associare una coppia di chiavi SSH e collocare l'istanza nella subnet corretta associandole un Security Group che apra la porta 22 (SSH) e la 80 (HTTP).
+    \item \textbf{Creazione Load Balancer:} Dalla sezione "Load Balancing", creare un ALB, associarlo alle subnet pubbliche e creare un \textit{Target Group} che punti alle istanze EC2 su cui gira Kubernetes.
+\end{enumerate}
+
+\textbf{TODO: Inserire qui alcuni screenshot della console AWS (es. lista delle istanze EC2 in esecuzione e la dashboard del Load Balancer).}
+
+\end{mysection}
+
+\end{mychapter}

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Area Clienti | Scalamarket</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="login-section" class="landing-container">
+        <div class="glass-panel" style="width: 100%; max-width: 400px; margin: 0 auto;">
+            <h2 style="text-align: center; margin-bottom: 2rem;">Accesso Cliente</h2>
+            <div id="login-error" style="color: var(--danger); margin-bottom: 1rem; text-align: center;"></div>
+            
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="client-username" class="form-control" placeholder="Inserisci username">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="client-password" class="form-control" placeholder="Inserisci password">
+            </div>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button id="btn-login" class="btn primary-btn" style="flex: 1;">Login</button>
+                <button id="btn-register" class="btn secondary-btn" style="flex: 1;">Registrati</button>
+            </div>
+            <div style="text-align: center; margin-top: 1.5rem;">
+                <a href="index.html" style="color: var(--text-muted); text-decoration: none; font-size: 0.875rem;">Torna alla Home</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard-section" class="dashboard-container" style="display: none;">
+        <header class="topbar">
+            <h1>Scala<span>market</span> - Dashboard Cliente</h1>
+            <div class="topbar-right">
+                <span id="user-greeting" style="color: var(--text-muted);"></span>
+                <button id="btn-logout" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Logout</button>
+            </div>
+        </header>
+
+        <main class="dashboard-content">
+            <div style="display: flex; gap: 2rem;">
+                
+                <!-- Catalogo -->
+                <section style="flex: 2;">
+                    <h2 style="margin-bottom: 1.5rem;">Catalogo Articoli</h2>
+                    <div id="catalog-grid" class="grid-container">
+                        <!-- Caricato via JS -->
+                        <div class="card"><p>Caricamento in corso...</p></div>
+                    </div>
+                </section>
+                
+                <!-- Carrello e Ordini -->
+                <section style="flex: 1; display: flex; flex-direction: column; gap: 2rem;">
+                    <div class="glass-panel">
+                        <h2 style="margin-bottom: 1.5rem;">Il tuo Carrello</h2>
+                        <div id="cart-items" style="margin-bottom: 1.5rem;">
+                            <p style="color: var(--text-muted);">Il carrello è vuoto.</p>
+                        </div>
+                        <button id="btn-place-order" class="btn primary-btn" style="width: 100%;" disabled>Conferma Ordine</button>
+                        <div id="order-message" style="margin-top: 1rem; font-size: 0.875rem;"></div>
+                    </div>
+                    
+                    <div class="glass-panel" style="flex: 1; overflow-y: auto; max-height: 400px;">
+                        <h2 style="margin-bottom: 1.5rem;">I Miei Ordini</h2>
+                        <div id="user-orders-list" style="margin-top: 1rem; font-size: 0.875rem;">
+                            <p>Caricamento in corso...</p>
+                        </div>
+                    </div>
+                </section>
+                
+            </div>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/client.js"></script>
+</body>
+</html>
