@@ -32,14 +32,113 @@ Il lato client e il pannello di gestione amministrativa sono stati realizzati me
 
 \end{mychapter}
 
-\begin{mysection}{Orchestrazione con Kubernetes}
-Al fine di garantire scalabilità, elevata affidabilità e resilienza, l'intera applicazione è stata pacchettizzata e orchestrata tramite \textbf{Kubernetes}.
+\begin{mychapter}{Orchestrazione Kubernetes}
 
-Ogni servizio (Frontend, Auth, Inventory, Order e PostgreSQL) è stato inserito in un container isolato partendo da appositi \textit{Dockerfile}. Successivamente, sono stati definiti i \textit{Deployment} Kubernetes per gestire il ciclo di vita dei Pod e assicurarne il riavvio in caso di anomalie.
-Per la comunicazione interna tra i microservizi è stato utilizzato un meccanismo di \textit{Service ClusterIP}, mentre per esporre l'interfaccia web verso l'esterno è stato sfruttato il \textit{NodePort} o il port-forwarding in ambiente di sviluppo.
+\begin{mysection}{Infrastruttura Barebone}
+La prima configurazione Kubernetes realizzata è definita \textbf{Barebone}: è operativa e funzionante, ma priva di qualsiasi meccanismo di ridondanza. Ogni componente dell'applicazione viene eseguito come un singolo Pod, il che configura un \textit{Single Point of Failure} per ogni livello dello stack.
 
-La persistenza del database PostgreSQL è stata garantita tramite \textbf{Persistent Volumes (PV)} e \textbf{Persistent Volume Claims (PVC)}, assicurando che i dati relativi a utenti, articoli e ordini non vadano persi alla terminazione dei Pod. 
-Infine, per gestire il paradigma multi-tenant delle Filiali, non sono stati creati Pod separati, ma è stata adottata una singola infrastruttura partizionata logicamente tramite il \texttt{location\_id} nel database, limitando così i costi infrastrutturali in ottica di rilascio in cloud.
+I componenti dell'infrastruttura Barebone sono i seguenti:
 
-\textbf{TODO: Inserire qui uno screenshot o un diagramma raffigurante l'architettura dei Pod Kubernetes (es. output di kubectl get pods).}
+\begin{itemize}
+    \item \textbf{frontend} (nginx): Deployment con 1 replica, esposto all'esterno tramite un Service di tipo \texttt{LoadBalancer} sulla porta 8080.
+    \item \textbf{auth-service} (Flask): Deployment con 1 replica, raggiungibile internamente tramite Service \texttt{ClusterIP} sulla porta 5001.
+    \item \textbf{inventory-service} (Flask): Deployment con 1 replica, raggiungibile internamente tramite Service \texttt{ClusterIP} sulla porta 5002.
+    \item \textbf{order-service} (Flask): Deployment con 1 replica, raggiungibile internamente tramite Service \texttt{ClusterIP} sulla porta 5003.
+    \item \textbf{postgres}: Deployment con 1 replica, con storage persistente garantito da un \texttt{PersistentVolume} (PV) e un \texttt{PersistentVolumeClaim} (PVC). Il Service è di tipo \texttt{ClusterIP} sulla porta 5432.
+\end{itemize}
+
+\textbf{TODO: Inserire qui uno screenshot dell'output di \texttt{kubectl get pods} con tutti i pod in stato Running (barebone).}
+
+I limiti principali di questa configurazione sono:
+\begin{itemize}
+    \item Nessuna ridondanza: un guasto a qualsiasi Pod causa un'interruzione del servizio.
+    \item Nessun Ingress Controller: l'accesso esterno alle API avviene esclusivamente tramite \texttt{kubectl port-forward} diretto verso ogni singolo servizio.
+    \item Nessun load-balancing applicativo: non esiste alcun meccanismo per distribuire il carico tra istanze multiple in caso di picchi di traffico.
+\end{itemize}
 \end{mysection}
+
+\begin{mysection}{Infrastruttura con Ridondanza e Ingress}
+La seconda fase evolutiva dell'infrastruttura introduce due miglioramenti strutturali fondamentali: il \textbf{Kubernetes Ingress} e le \textbf{repliche multiple} per i servizi stateless critici.
+
+\subsubsection*{Analisi della criticità e scelta delle repliche}
+La suddivisione logica del sistema in quattro layer guida la scelta delle repliche:
+
+\begin{itemize}
+    \item \textbf{Frontend (nginx):} Stateless. 2 repliche per garantire disponibilità durante aggiornamenti o guasti di un Pod.
+    \item \textbf{Logica di Business (auth, inventory, order):} Completamente stateless (lo stato risiede nel database). 3 repliche ciascuno, poiché questi servizi sono i punti di maggior stress durante accessi concorrenti: autenticazione simultanea di più utenti, letture/scritture sull'inventario, elaborazione parallela di ordini.
+    \item \textbf{Database (postgres):} Rimane a 1 replica. La scalabilità orizzontale di un RDBMS relazionale richiede soluzioni architetturali dedicate (es. pgBouncer per il connection pooling, read-replica per le query di lettura, o servizi gestiti come Amazon RDS in produzione).
+\end{itemize}
+
+Il \texttt{Service} \texttt{ClusterIP} di Kubernetes funge automaticamente da \textbf{load-balancer interno}, distribuendo le richieste in modalità round-robin tra tutti i Pod attivi dello stesso Deployment.
+
+Tutti i container dei servizi Flask sono inoltre dotati di \texttt{resources} (requests e limits) per evitare il problema del \textit{noisy neighbor}: un Pod che consuma risorse eccessive non può degradare le prestazioni degli altri in esecuzione sullo stesso nodo fisico.
+
+\subsubsection*{Kubernetes Ingress Controller}
+L'Ingress è un oggetto Kubernetes che agisce come \textbf{reverse proxy} HTTP a livello di cluster. Con un unico indirizzo IP esposto al pubblico, l'Ingress Controller (basato su NGINX) instrada le richieste verso il servizio backend corretto in base al prefisso del percorso URL, eliminando la necessità di port-forward multipli.
+
+Le rotte implementate rispecchiano la suddivisione logica dell'API:
+
+\begin{itemize}
+    \item \texttt{/} $\rightarrow$ \texttt{frontend-service} --- serve le interfacce HTML statiche (cliente e amministratore).
+    \item \texttt{/api/auth/} $\rightarrow$ \texttt{auth-service:5001} --- endpoint di autenticazione, registrazione e gestione utenti.
+    \item \texttt{/api/inventory/} $\rightarrow$ \texttt{inventory-service:5002} --- endpoint catalogo, articoli e giacenze.
+    \item \texttt{/api/orders/} $\rightarrow$ \texttt{order-service:5003} --- endpoint ordini, storico e logistica.
+\end{itemize}
+
+\textbf{TODO: Inserire qui un diagramma del flusso di rete: Client $\rightarrow$ Ingress $\rightarrow$ ClusterIP Service $\rightarrow$ Pod replica.}
+
+\textbf{TODO: Inserire qui lo screenshot dell'output di \texttt{kubectl get ingress} e \texttt{kubectl get pods} con le repliche attive.}
+\end{mysection}
+
+\begin{mysection}{Guida all'Avvio}
+
+\subsubsection*{Fase 1 -- Avvio Barebone}
+\begin{lstlisting}[language=bash, caption={Avvio infrastruttura Barebone}]
+# Build immagini Docker (dalla root del progetto)
+docker build -t cpiac_frontend:v5 -f frontend/Dockerfile frontend/
+docker build -t cpiac_auth:v5     -f microservices/auth_service/Dockerfile .
+docker build -t cpiac_inventory:v5 -f microservices/inventory_service/Dockerfile .
+docker build -t cpiac_order:v5    -f microservices/order_service/Dockerfile .
+
+# Deploy di tutte le risorse Kubernetes
+kubectl apply -f k8s/
+
+# Port-forward per accesso locale (alternativa all'Ingress)
+kubectl port-forward svc/auth-service      5001:5001 &
+kubectl port-forward svc/inventory-service 5002:5002 &
+kubectl port-forward svc/order-service     5003:5003 &
+
+kubectl get pods  # Verifica stato
+\end{lstlisting}
+
+\subsubsection*{Fase 2 -- Avvio con Ridondanza e Ingress}
+\begin{lstlisting}[language=bash, caption={Avvio infrastruttura con repliche e Ingress}]
+# (Una-tantum) Installazione NGINX Ingress Controller
+# In Minikube:
+minikube addons enable ingress
+
+# In un cluster generico (kubeadm, kind, cloud):
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/\
+controller-v1.10.0/deploy/static/provider/cloud/deploy.yaml
+
+# Deploy di tutte le risorse (i deployment aggiornati hanno gia' le repliche)
+kubectl apply -f k8s/
+
+# Verifica repliche e stato Ingress
+kubectl get pods
+kubectl get ingress
+
+# (Solo Minikube) Accesso via browser
+minikube ip  # Usa l'IP ottenuto per navigare su http://<minikube-ip>/
+\end{lstlisting}
+
+Per azzerare e ricreare l'intera infrastruttura da zero (ad esempio dopo una modifica strutturale al database):
+\begin{lstlisting}[language=bash, caption={Reset completo del cluster}]
+kubectl delete -f k8s/
+sleep 5
+kubectl apply -f k8s/
+\end{lstlisting}
+\end{mysection}
+
+\end{mychapter}
+

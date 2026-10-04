@@ -181,3 +181,20 @@ resource "aws_lb_listener" "front_end" {
     target_group_arn = aws_lb_target_group.k8s_tg.arn
   }
 }
+
+# Annual Budget Limit ($100)
+resource "aws_budgets_budget" "annual_budget" {
+  name              = "scalamarket-annual-budget"
+  budget_type       = "COST"
+  limit_amount      = "100.0"
+  limit_unit        = "USD"
+  time_unit         = "ANNUALLY"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = ["admin@scalamarket.local"]
+  }
+}

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: order-service
 spec:
-  replicas: 1
+  replicas: 3  # Scalato: servizio stateless, critico per elaborazione ordini concorrente
   selector:
     matchLabels:
       app: order-service
@@ -21,3 +21,10 @@ spec:
           env:
             - name: DATABASE_URI
               value: "postgresql://admin:password@postgres-service:5432/order_db"
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "128Mi"
+            limits:
+              cpu: "400m"
+              memory: "256Mi"

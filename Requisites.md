@@ -78,8 +78,9 @@ Il deployment dell'architettura Kubernetes non avverrà manualmente, ma sfrutter
 * **Amazon S3 (Opzionale):** Utilizzato per l'hosting degli asset statici dell'interfaccia web o lo storage delle immagini degli articoli.
 
 ### 3.2 Infrastructure-as-Code (Terraform)
-* **Provisioning Automatizzato:** L'intera infrastruttura AWS (VPC, Subnet, Security Group, Istanze EC2, Load Balancer) sarà descritta e creata tramite script **Terraform**.
+* **Provisioning Automatizzato:** L'intera infrastruttura AWS (VPC, Subnet, Security Group, Istanze EC2 (1 Master, 2 Worker), Load Balancer e Budgets) sarà descritta e creata tramite script **Terraform**.
 * **Riproducibilità:** Il progetto dimostrerà che l'ambiente di produzione può essere creato e distrutto (spin-up e tear-down) in modo completamente automatizzato tramite i comandi di Terraform (`terraform plan`, `terraform apply`).
+* **Controllo Costi (AWS Budgets):** È stato implementato un limite di budget rigido per impedire costi a sorpresa. Lo script configura un budget di $100 annui, con alert inviati all'amministratore in caso si superi l'80\% della soglia.
 
 ### 3.3 Guida AWS
 
@@ -96,7 +97,7 @@ Il deployment dell'architettura Kubernetes non avverrà manualmente, ma sfrutter
 * **Teoria:** La VPC garantisce l'isolamento di rete nel cloud pubblico. I Security Group sono controlli "stateful" associati direttamente alle interfacce di rete delle istanze.
 
 **Passo 3: Provisioning dei Nodi Kubernetes (Amazon EC2)**
-* **In pratica:** Lanci le istanze EC2 (i server fisici virtualizzati, es. un Master e due Worker) specificando l'Amazon Machine Image (AMI, come Ubuntu), l'Instance Type (es. `t2.medium`) e le chiavi SSH.
+* **In pratica:** Lanci 3 istanze EC2 (i server fisici virtualizzati: 1 Master e 2 Worker) specificando l'Amazon Machine Image (AMI, come Ubuntu), l'Instance Type (es. `t3.medium`) e le chiavi SSH.
 * **Teoria:** EC2 è il servizio IaaS di calcolo base. Tramite script di automazione inseriti nei metadati (`user_data`), Terraform può far installare i componenti di Kubernetes all'avvio della macchina.
 
 **Passo 4: Bilanciamento del traffico in ingresso (Amazon ELB)**
@@ -114,3 +115,114 @@ Il deployment dell'architettura Kubernetes non avverrà manualmente, ma sfrutter
 * Saper illustrare e giustificare riga per riga i propri file di configurazione `.tf`.
 * Saper spiegare logicamente le regole *Ingress* ed *Egress* configurate nei Security Group.
 * Ricostruire a voce l'intero flusso di rete: l'utente su Internet -> Internet Gateway -> ALB (Subnet Pubblica) -> EC2 Worker (Subnet Privata) -> kube-proxy/iptables -> Pod Flask.
+
+---
+
+## 4. Infrastruttura Kubernetes: Fase Barebone
+
+### 4.1 Definizione
+
+L'infrastruttura **Barebone** rappresenta il primo livello di deployment Kubernetes operativo. È funzionante ma priva di ridondanza: ogni componente gira con **una singola replica (Pod)**, il che significa che un guasto a qualsiasi nodo comporta un'interruzione del servizio.
+
+### 4.2 Componenti implementati
+
+| Componente | Kind K8s | Tipo Service | Repliche |
+|---|---|---|---|
+| `frontend` (nginx) | Deployment | LoadBalancer (porta 8080) | 1 |
+| `auth-service` (Flask) | Deployment | ClusterIP (porta 5001) | 1 |
+| `inventory-service` (Flask) | Deployment | ClusterIP (porta 5002) | 1 |
+| `order-service` (Flask) | Deployment | ClusterIP (porta 5003) | 1 |
+| `postgres` | Deployment | ClusterIP (porta 5432) | 1 |
+
+Lo storage di PostgreSQL è reso persistente tramite un **PersistentVolume (PV)** e un **PersistentVolumeClaim (PVC)**, garantendo che i dati sopravvivano al riavvio del Pod database.
+
+### 4.3 Limiti della configurazione Barebone
+
+* **Nessuna ridondanza:** 1 Pod per servizio = Single Point of Failure.
+* **Nessun Ingress:** l'accesso esterno avviene solo tramite `kubectl port-forward` o il Service `LoadBalancer` sul frontend, che non gestisce il routing API a livello di percorso URL.
+* **Nessun load-balancing applicativo:** se un Pod si sovraccarica, non esiste un meccanismo per distribuire il carico tra istanze multiple.
+
+### 4.4 Avvio della fase Barebone
+
+```bash
+# 1. Build delle immagini Docker (da eseguire dalla root del progetto)
+docker build -t cpiac_frontend:v5 -f frontend/Dockerfile frontend/
+docker build -t cpiac_auth:v5    -f microservices/auth_service/Dockerfile .
+docker build -t cpiac_inventory:v5 -f microservices/inventory_service/Dockerfile .
+docker build -t cpiac_order:v5   -f microservices/order_service/Dockerfile .
+
+# 2. Deploy di tutte le risorse K8s
+kubectl apply -f k8s/
+
+# 3. Port-forward per sviluppo locale (opzionale se non si usa Ingress)
+kubectl port-forward svc/auth-service 5001:5001 &
+kubectl port-forward svc/inventory-service 5002:5002 &
+kubectl port-forward svc/order-service 5003:5003 &
+
+# Verifica stato
+kubectl get pods
+```
+
+---
+
+## 5. Infrastruttura Kubernetes: Fase con Ridondanza e Scalabilità
+
+### 5.1 Motivazione
+
+Per tollerare più accessi concorrenti e aumentare la resilienza, la seconda fase introduce un **Kubernetes Ingress** e **repliche multiple** per i servizi stateless identificati come colli di bottiglia.
+
+### 5.2 Analisi della criticità
+
+La suddivisione logica del sistema è:
+
+| Layer | Servizi | Stateless? | Criticità concorrenza |
+|---|---|---|---|
+| **Frontend Cliente/Admin** | `frontend` (nginx) | ✅ Sì | Media — nginx gestisce bene, 2 repliche |
+| **Logica di Business** | `auth-service`, `inventory-service`, `order-service` | ✅ Sì | **Alta** — sono gli endpoint API attivi |
+| **Database** | `postgres` | ❌ No | N/D — non scalabile orizzontalmente senza soluzioni dedicate |
+
+Il database PostgreSQL rimane a **1 replica** poiché la scalabilità orizzontale di un DBMS relazionale richiede soluzioni dedicate (es. pgBouncer, read-replica, o servizi gestiti come Amazon RDS). Tutti i servizi Flask sono invece **stateless** (lo stato è nel DB) e possono essere replicati liberamente.
+
+### 5.3 Configurazione repliche adottata
+
+| Servizio | Repliche (Barebone) | Repliche (Scalabile) |
+|---|---|---|
+| `frontend` | 1 | 2 |
+| `auth-service` | 1 | 3 |
+| `inventory-service` | 1 | 3 |
+| `order-service` | 1 | 3 |
+| `postgres` | 1 | 1 (invariato) |
+
+Il **Service ClusterIP** di Kubernetes funge da load-balancer interno, distribuendo le richieste in round-robin tra i Pod appartenenti allo stesso Deployment.
+
+### 5.4 Kubernetes Ingress
+
+Un **Ingress** (con NGINX Ingress Controller) espone un unico punto di ingresso HTTP sulla porta 80, instradando le richieste ai microservizi corretti in base al prefisso del percorso URL. La suddivisione delle rotte API riflette l'architettura logica:
+
+| Prefisso | Backend | Descrizione |
+|---|---|---|
+| `/` | `frontend-service:8080` | Frontend statico (client + admin HTML) |
+| `/api/auth/` | `auth-service:5001` | Autenticazione, registrazione, gestione utenti |
+| `/api/inventory/` | `inventory-service:5002` | Catalogo, gestione articoli e giacenze |
+| `/api/orders/` | `order-service:5003` | Ordini, logistica, storico |
+
+### 5.5 Avvio della fase con ridondanza
+
+```bash
+# 1. Installa NGINX Ingress Controller (una-tantum)
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/cloud/deploy.yaml
+
+# Oppure in Minikube:
+minikube addons enable ingress
+
+# 2. Deploy di tutte le risorse K8s (inclusi ingress e deployment aggiornati)
+kubectl apply -f k8s/
+
+# 3. Verifica repliche e Ingress
+kubectl get pods
+kubectl get ingress
+
+# 4. (Solo Minikube) Ottieni l'IP del cluster per accedere via browser
+minikube ip
+# Poi naviga su http://<minikube-ip>/
+```
