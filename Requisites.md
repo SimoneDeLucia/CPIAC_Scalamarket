@@ -116,6 +116,56 @@ Il deployment dell'architettura Kubernetes non avverrà manualmente, ma sfrutter
 * Saper spiegare logicamente le regole *Ingress* ed *Egress* configurate nei Security Group.
 * Ricostruire a voce l'intero flusso di rete: l'utente su Internet -> Internet Gateway -> ALB (Subnet Pubblica) -> EC2 Worker (Subnet Privata) -> kube-proxy/iptables -> Pod Flask.
 
+### 3.4 Inizializzazione e Deployment Terraform
+Per lanciare la piattaforma Terraform (prima di inizializzare i container Kubernetes sull'infrastruttura), esegui i seguenti comandi dalla cartella `terraform/`:
+
+```bash
+cd terraform/
+# 1. Inizializza l'ambiente scaricando i provider AWS necessari
+terraform init
+
+# 2. Verifica l'Execution Plan (cosa verrà creato)
+terraform plan
+
+# 3. Applica i cambiamenti e crea l'infrastruttura su AWS
+terraform apply
+```
+Una volta che l'infrastruttura Cloud è pronta (i nodi EC2 sono in esecuzione), potrai connetterti ai nodi per procedere con l'avvio dei container Kubernetes (come illustrato nelle Fasi 4 e 5).
+
+### 3.5 Schema Architetturale AWS
+Di seguito è riportato lo schema dell'infrastruttura AWS generata da Terraform. 
+
+**Versione ASCII Art:**
+```text
+          [ Internet ]
+                |
+          +-----v-----+
+          |    IGW    |  (Internet Gateway)
+          +-----+-----+
+                |
+   +------------v------------+ (VPC: 10.0.0.0/16)
+   |       AWS ALB           | (Application Load Balancer)
+   |  (Subnet Pubblica)      |
+   +----+---------------+----+
+        |               |
++-------v-------+ +-----v-------+
+| EC2 Master    | | EC2 Worker  | (Istanze t3.medium)
+| (Control Plane| | (Node K3s)  |
++---------------+ +-------------+
+```
+
+**Versione grafica riproducibile (Mermaid):**
+```mermaid
+graph TD
+    Internet((Internet)) --> IGW[Internet Gateway]
+    subgraph VPC [AWS VPC - eu-south-1]
+        IGW --> ALB[Application Load Balancer<br>Public Subnet]
+        ALB -->|Target Group| Master[EC2 Master<br>t3.medium]
+        ALB -->|Target Group| Worker1[EC2 Worker 1<br>t3.medium]
+        ALB -->|Target Group| Worker2[EC2 Worker 2<br>t3.medium]
+    end
+```
+
 ---
 
 ## 4. Infrastruttura Kubernetes: Fase Barebone
@@ -123,6 +173,38 @@ Il deployment dell'architettura Kubernetes non avverrà manualmente, ma sfrutter
 ### 4.1 Definizione
 
 L'infrastruttura **Barebone** rappresenta il primo livello di deployment Kubernetes operativo. È funzionante ma priva di ridondanza: ogni componente gira con **una singola replica (Pod)**, il che significa che un guasto a qualsiasi nodo comporta un'interruzione del servizio.
+
+**Schema ASCII Art (Barebone):**
+```text
+  [ Utente ]
+      | (Port 8080)
++-----v-----+      +----------------+
+|  Frontend |      |  PostgreSQL    |
+| (1 Pod)   |      | (1 Pod + PVC)  |
++-----------+      +-------^--------+
+      |                    |
++-----v--------------------v--------+
+|         Service ClusterIP         |
++-----+----------------+------------+
+      |                |
++-----v-----+    +-----v-----+
+|   Auth    |    | Inventory |
+| (1 Pod)   |    |  (1 Pod)  |
++-----------+    +-----------+
+*(N.B.: L'Order Service si interfaccia nello stesso modo ai Service ClusterIP)*
+```
+
+**Versione grafica riproducibile (Mermaid):**
+```mermaid
+graph TD
+    User([Utente]) -->|Port 8080| Frontend[Frontend NGINX<br>1 Replica]
+    Frontend --> Auth[Auth Service<br>1 Replica]
+    Frontend --> Inv[Inventory Service<br>1 Replica]
+    Frontend --> Order[Order Service<br>1 Replica]
+    Auth --> DB[(PostgreSQL<br>1 Replica + PVC)]
+    Inv --> DB
+    Order --> DB
+```
 
 ### 4.2 Componenti implementati
 
@@ -205,6 +287,47 @@ Un **Ingress** (con NGINX Ingress Controller) espone un unico punto di ingresso 
 | `/api/auth/` | `auth-service:5001` | Autenticazione, registrazione, gestione utenti |
 | `/api/inventory/` | `inventory-service:5002` | Catalogo, gestione articoli e giacenze |
 | `/api/orders/` | `order-service:5003` | Ordini, logistica, storico |
+
+**Schema ASCII Art (Scalabilità e Ingress):**
+```text
+      [ Utente Internet ]
+              | HTTP (:80)
+   +----------v-----------+
+   |   NGINX Ingress      |
+   |    (Routing URL)     |
+   +--+----+---------+----+
+      |    |         |
+     /api /auth    /orders
+    /      |         |
++---v--+ +-v---+  +--v---+
+|Front | |Auth |  |Order |
+| (x2) | |(x3) |  |(x3)  |
++------+ +--+--+  +--+---+
+            |        |
+        +---v--------v---+
+        |  PostgreSQL    |
+        | (1 Replica)    |
+        +----------------+
+```
+
+**Versione grafica riproducibile (Mermaid):**
+```mermaid
+graph TD
+    User([Utente Internet]) -->|HTTP :80| Ingress[NGINX Ingress Controller]
+    Ingress -->|/| Front[Frontend Service]
+    Ingress -->|/api/auth| Auth[Auth Service]
+    Ingress -->|/api/inventory| Inv[Inventory Service]
+    Ingress -->|/api/orders| Order[Order Service]
+    
+    Front -.->|Load Balance| F_Pods[2x NGINX Pods]
+    Auth -.->|Load Balance| A_Pods[3x Flask Pods]
+    Inv -.->|Load Balance| I_Pods[3x Flask Pods]
+    Order -.->|Load Balance| O_Pods[3x Flask Pods]
+    
+    A_Pods --> DB[(PostgreSQL<br>1 Replica)]
+    I_Pods --> DB
+    O_Pods --> DB
+```
 
 ### 5.5 Avvio della fase con ridondanza
 
