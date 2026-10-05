@@ -95,8 +95,8 @@ resource "aws_security_group" "k8s_sg" {
   }
 }
 
-# EC2 Instances for Kubernetes (K3s)
-resource "aws_instance" "k8s_master" {
+# EC2 Instances per Kubernetes (K3s) - Singolo Nodo per rientrare nel budget
+resource "aws_instance" "k8s_node" {
   ami           = var.ami_id
   instance_type = var.instance_type
   subnet_id     = aws_subnet.public_subnet.id
@@ -105,33 +105,7 @@ resource "aws_instance" "k8s_master" {
   user_data = file("user_data.sh")
 
   tags = {
-    Name = "scalamarket-k8s-master"
-  }
-}
-
-resource "aws_instance" "k8s_worker_1" {
-  ami           = var.ami_id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.public_subnet.id
-  vpc_security_group_ids = [aws_security_group.k8s_sg.id]
-
-  user_data = file("user_data.sh")
-
-  tags = {
-    Name = "scalamarket-k8s-worker-1"
-  }
-}
-
-resource "aws_instance" "k8s_worker_2" {
-  ami           = var.ami_id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.public_subnet.id
-  vpc_security_group_ids = [aws_security_group.k8s_sg.id]
-
-  user_data = file("user_data.sh")
-
-  tags = {
-    Name = "scalamarket-k8s-worker-2"
+    Name = "scalamarket-k8s-node"
   }
 }
 
@@ -159,15 +133,9 @@ resource "aws_lb_target_group" "k8s_tg" {
   }
 }
 
-resource "aws_lb_target_group_attachment" "worker_1_attach" {
+resource "aws_lb_target_group_attachment" "node_attach" {
   target_group_arn = aws_lb_target_group.k8s_tg.arn
-  target_id        = aws_instance.k8s_worker_1.id
-  port             = 80
-}
-
-resource "aws_lb_target_group_attachment" "worker_2_attach" {
-  target_group_arn = aws_lb_target_group.k8s_tg.arn
-  target_id        = aws_instance.k8s_worker_2.id
+  target_id        = aws_instance.k8s_node.id
   port             = 80
 }
 
@@ -182,13 +150,13 @@ resource "aws_lb_listener" "front_end" {
   }
 }
 
-# Annual Budget Limit ($100)
-resource "aws_budgets_budget" "annual_budget" {
-  name              = "scalamarket-annual-budget"
+# Monthly Budget Limit ($100)
+resource "aws_budgets_budget" "monthly_budget" {
+  name              = "scalamarket-monthly-budget"
   budget_type       = "COST"
   limit_amount      = "100.0"
   limit_unit        = "USD"
-  time_unit         = "ANNUALLY"
+  time_unit         = "MONTHLY"
 
   notification {
     comparison_operator        = "GREATER_THAN"

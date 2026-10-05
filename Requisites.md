@@ -78,9 +78,9 @@ Il deployment dell'architettura Kubernetes non avverrà manualmente, ma sfrutter
 * **Amazon S3 (Opzionale):** Utilizzato per l'hosting degli asset statici dell'interfaccia web o lo storage delle immagini degli articoli.
 
 ### 3.2 Infrastructure-as-Code (Terraform)
-* **Provisioning Automatizzato:** L'intera infrastruttura AWS (VPC, Subnet, Security Group, Istanze EC2 (1 Master, 2 Worker), Load Balancer e Budgets) sarà descritta e creata tramite script **Terraform**.
+* **Provisioning Automatizzato:** L'intera infrastruttura AWS (VPC, Subnet, Security Group, Istanze EC2 (Singolo Nodo), Load Balancer e Budgets) sarà descritta e creata tramite script **Terraform**.
 * **Riproducibilità:** Il progetto dimostrerà che l'ambiente di produzione può essere creato e distrutto (spin-up e tear-down) in modo completamente automatizzato tramite i comandi di Terraform (`terraform plan`, `terraform apply`).
-* **Controllo Costi (AWS Budgets):** È stato implementato un limite di budget rigido per impedire costi a sorpresa. Lo script configura un budget di $100 annui, con alert inviati all'amministratore in caso si superi l'80\% della soglia.
+* **Controllo Costi (AWS Budgets):** È stato implementato un limite di budget rigido per impedire costi a sorpresa. Lo script configura un budget di $100 mensili, con alert inviati all'amministratore in caso si superi l'80\% della soglia. Essendo il Load Balancer (ALB) un componente costoso, si utilizza un singolo nodo EC2 attivo per compensare i costi.
 
 ### 3.3 Guida AWS
 
@@ -97,7 +97,7 @@ Il deployment dell'architettura Kubernetes non avverrà manualmente, ma sfrutter
 * **Teoria:** La VPC garantisce l'isolamento di rete nel cloud pubblico. I Security Group sono controlli "stateful" associati direttamente alle interfacce di rete delle istanze.
 
 **Passo 3: Provisioning dei Nodi Kubernetes (Amazon EC2)**
-* **In pratica:** Lanci 3 istanze EC2 (i server fisici virtualizzati: 1 Master e 2 Worker) specificando l'Amazon Machine Image (AMI, come Ubuntu), l'Instance Type (es. `t3.medium`) e le chiavi SSH.
+* **In pratica:** Lanci un'unica istanza EC2 (server fisico virtualizzato: 1 Nodo K3s unificato) specificando l'Amazon Machine Image (AMI, come Ubuntu), l'Instance Type (es. `t3.medium`) e le chiavi SSH.
 * **Teoria:** EC2 è il servizio IaaS di calcolo base. Tramite script di automazione inseriti nei metadati (`user_data`), Terraform può far installare i componenti di Kubernetes all'avvio della macchina.
 
 **Passo 4: Bilanciamento del traffico in ingresso (Amazon ELB)**
@@ -116,95 +116,13 @@ Il deployment dell'architettura Kubernetes non avverrà manualmente, ma sfrutter
 * Saper spiegare logicamente le regole *Ingress* ed *Egress* configurate nei Security Group.
 * Ricostruire a voce l'intero flusso di rete: l'utente su Internet -> Internet Gateway -> ALB (Subnet Pubblica) -> EC2 Worker (Subnet Privata) -> kube-proxy/iptables -> Pod Flask.
 
-### 3.4 Inizializzazione e Deployment Terraform
-Per lanciare la piattaforma Terraform (prima di inizializzare i container Kubernetes sull'infrastruttura), esegui i seguenti comandi dalla cartella `terraform/`:
 
-```bash
-cd terraform/
-# 1. Inizializza l'ambiente scaricando i provider AWS necessari
-terraform init
-
-# 2. Verifica l'Execution Plan (cosa verrà creato)
-terraform plan
-
-# 3. Applica i cambiamenti e crea l'infrastruttura su AWS
-terraform apply
-```
-Una volta che l'infrastruttura Cloud è pronta (i nodi EC2 sono in esecuzione), potrai connetterti ai nodi per procedere con l'avvio dei container Kubernetes (come illustrato nelle Fasi 4 e 5).
-
-### 3.5 Schema Architetturale AWS
-Di seguito è riportato lo schema dell'infrastruttura AWS generata da Terraform. 
-
-**Versione ASCII Art:**
-```text
-          [ Internet ]
-                |
-          +-----v-----+
-          |    IGW    |  (Internet Gateway)
-          +-----+-----+
-                |
-   +------------v------------+ (VPC: 10.0.0.0/16)
-   |       AWS ALB           | (Application Load Balancer)
-   |  (Subnet Pubblica)      |
-   +----+---------------+----+
-        |               |
-+-------v-------+ +-----v-------+
-| EC2 Master    | | EC2 Worker  | (Istanze t3.medium)
-| (Control Plane| | (Node K3s)  |
-+---------------+ +-------------+
-```
-
-**Versione grafica riproducibile (Mermaid):**
-```mermaid
-graph TD
-    Internet((Internet)) --> IGW[Internet Gateway]
-    subgraph VPC [AWS VPC - eu-south-1]
-        IGW --> ALB[Application Load Balancer<br>Public Subnet]
-        ALB -->|Target Group| Master[EC2 Master<br>t3.medium]
-        ALB -->|Target Group| Worker1[EC2 Worker 1<br>t3.medium]
-        ALB -->|Target Group| Worker2[EC2 Worker 2<br>t3.medium]
-    end
-```
-
----
 
 ## 4. Infrastruttura Kubernetes: Fase Barebone
 
 ### 4.1 Definizione
 
 L'infrastruttura **Barebone** rappresenta il primo livello di deployment Kubernetes operativo. È funzionante ma priva di ridondanza: ogni componente gira con **una singola replica (Pod)**, il che significa che un guasto a qualsiasi nodo comporta un'interruzione del servizio.
-
-**Schema ASCII Art (Barebone):**
-```text
-  [ Utente ]
-      | (Port 8080)
-+-----v-----+      +----------------+
-|  Frontend |      |  PostgreSQL    |
-| (1 Pod)   |      | (1 Pod + PVC)  |
-+-----------+      +-------^--------+
-      |                    |
-+-----v--------------------v--------+
-|         Service ClusterIP         |
-+-----+----------------+------------+
-      |                |
-+-----v-----+    +-----v-----+
-|   Auth    |    | Inventory |
-| (1 Pod)   |    |  (1 Pod)  |
-+-----------+    +-----------+
-*(N.B.: L'Order Service si interfaccia nello stesso modo ai Service ClusterIP)*
-```
-
-**Versione grafica riproducibile (Mermaid):**
-```mermaid
-graph TD
-    User([Utente]) -->|Port 8080| Frontend[Frontend NGINX<br>1 Replica]
-    Frontend --> Auth[Auth Service<br>1 Replica]
-    Frontend --> Inv[Inventory Service<br>1 Replica]
-    Frontend --> Order[Order Service<br>1 Replica]
-    Auth --> DB[(PostgreSQL<br>1 Replica + PVC)]
-    Inv --> DB
-    Order --> DB
-```
 
 ### 4.2 Componenti implementati
 
@@ -223,27 +141,6 @@ Lo storage di PostgreSQL è reso persistente tramite un **PersistentVolume (PV)*
 * **Nessuna ridondanza:** 1 Pod per servizio = Single Point of Failure.
 * **Nessun Ingress:** l'accesso esterno avviene solo tramite `kubectl port-forward` o il Service `LoadBalancer` sul frontend, che non gestisce il routing API a livello di percorso URL.
 * **Nessun load-balancing applicativo:** se un Pod si sovraccarica, non esiste un meccanismo per distribuire il carico tra istanze multiple.
-
-### 4.4 Avvio della fase Barebone
-
-```bash
-# 1. Build delle immagini Docker (da eseguire dalla root del progetto)
-docker build -t cpiac_frontend:v5 -f frontend/Dockerfile frontend/
-docker build -t cpiac_auth:v5    -f microservices/auth_service/Dockerfile .
-docker build -t cpiac_inventory:v5 -f microservices/inventory_service/Dockerfile .
-docker build -t cpiac_order:v5   -f microservices/order_service/Dockerfile .
-
-# 2. Deploy di tutte le risorse K8s
-kubectl apply -f k8s/
-
-# 3. Port-forward per sviluppo locale (opzionale se non si usa Ingress)
-kubectl port-forward svc/auth-service 5001:5001 &
-kubectl port-forward svc/inventory-service 5002:5002 &
-kubectl port-forward svc/order-service 5003:5003 &
-
-# Verifica stato
-kubectl get pods
-```
 
 ---
 
@@ -288,64 +185,3 @@ Un **Ingress** (con NGINX Ingress Controller) espone un unico punto di ingresso 
 | `/api/inventory/` | `inventory-service:5002` | Catalogo, gestione articoli e giacenze |
 | `/api/orders/` | `order-service:5003` | Ordini, logistica, storico |
 
-**Schema ASCII Art (Scalabilità e Ingress):**
-```text
-      [ Utente Internet ]
-              | HTTP (:80)
-   +----------v-----------+
-   |   NGINX Ingress      |
-   |    (Routing URL)     |
-   +--+----+---------+----+
-      |    |         |
-     /api /auth    /orders
-    /      |         |
-+---v--+ +-v---+  +--v---+
-|Front | |Auth |  |Order |
-| (x2) | |(x3) |  |(x3)  |
-+------+ +--+--+  +--+---+
-            |        |
-        +---v--------v---+
-        |  PostgreSQL    |
-        | (1 Replica)    |
-        +----------------+
-```
-
-**Versione grafica riproducibile (Mermaid):**
-```mermaid
-graph TD
-    User([Utente Internet]) -->|HTTP :80| Ingress[NGINX Ingress Controller]
-    Ingress -->|/| Front[Frontend Service]
-    Ingress -->|/api/auth| Auth[Auth Service]
-    Ingress -->|/api/inventory| Inv[Inventory Service]
-    Ingress -->|/api/orders| Order[Order Service]
-    
-    Front -.->|Load Balance| F_Pods[2x NGINX Pods]
-    Auth -.->|Load Balance| A_Pods[3x Flask Pods]
-    Inv -.->|Load Balance| I_Pods[3x Flask Pods]
-    Order -.->|Load Balance| O_Pods[3x Flask Pods]
-    
-    A_Pods --> DB[(PostgreSQL<br>1 Replica)]
-    I_Pods --> DB
-    O_Pods --> DB
-```
-
-### 5.5 Avvio della fase con ridondanza
-
-```bash
-# 1. Installa NGINX Ingress Controller (una-tantum)
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/cloud/deploy.yaml
-
-# Oppure in Minikube:
-minikube addons enable ingress
-
-# 2. Deploy di tutte le risorse K8s (inclusi ingress e deployment aggiornati)
-kubectl apply -f k8s/
-
-# 3. Verifica repliche e Ingress
-kubectl get pods
-kubectl get ingress
-
-# 4. (Solo Minikube) Ottieni l'IP del cluster per accedere via browser
-minikube ip
-# Poi naviga su http://<minikube-ip>/
-```

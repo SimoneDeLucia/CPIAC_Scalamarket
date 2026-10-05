@@ -10,8 +10,8 @@ I file Terraform implementati (\texttt{main.tf}, \texttt{variables.tf}, \texttt{
     \item \textbf{Internet Gateway e Route Tables:} Per consentire il routing verso l'esterno.
     \item \textbf{Security Group:} Regole firewall stateful per aprire le porte in ingresso al traffico HTTP/HTTPS e porte interne per la comunicazione intra-nodo.
     \item \textbf{Application Load Balancer (ALB):} Per distribuire il traffico degli utenti verso i worker node.
-    \item \textbf{Istanze EC2:} Lancio di 3 macchine virtuali (1 Master e 2 Worker) di classe \texttt{t3.medium} basate su Amazon Machine Image (AMI) Ubuntu. Gli script \texttt{user\_data.sh} automatizzano l'installazione di Docker e delle componenti di Kubernetes (K3s) all'avvio.
-    \item \textbf{AWS Budgets:} Per evitare costi imprevisti, è configurato un \textit{Annual Budget} con limite di spesa pari a 100 USD annui, che invia alert via email se i costi superano la soglia dell'80\%.
+    \item \textbf{Istanze EC2:} Lancio di una singola macchina virtuale (nodo unificato) di classe \texttt{t3.medium} basata su Amazon Machine Image (AMI) Ubuntu per limitare i costi di esecuzione. Lo script \texttt{user\_data.sh} automatizza l'installazione di Docker e delle componenti di Kubernetes (K3s) all'avvio.
+    \item \textbf{AWS Budgets:} Per evitare costi imprevisti, è configurato un \textit{Monthly Budget} con limite di spesa pari a 100 USD mensili, che invia alert via email se i costi superano la soglia dell'80\%. L'utilizzo di un singolo nodo garantisce il rispetto di tale budget pur mantenendo l'Application Load Balancer.
 \end{itemize}
 
 I passi per eseguire lo script sono i seguenti:
@@ -33,7 +33,7 @@ Di seguito i passaggi principali:
     \item \textbf{Configurazione Subnet e Route Table:} Separare logicamente le reti pubbliche e private.
     \item \textbf{Lancio Istanze EC2:} Dalla dashboard EC2, cliccare su "Launch Instance". Selezionare un'AMI Ubuntu, scegliere una classe di istanza (es. \texttt{t3.medium}), associare una coppia di chiavi SSH e collocare l'istanza nella subnet corretta associandole un Security Group che apra la porta 22 (SSH) e la 80 (HTTP).
     \item \textbf{Creazione Load Balancer:} Dalla sezione "Load Balancing", creare un ALB, associarlo alle subnet pubbliche e creare un \textit{Target Group} che punti alle istanze EC2 su cui gira Kubernetes.
-    \item \textbf{Impostazione AWS Budget:} Dalla sezione "Billing", accedere a "Budgets" e creare un budget di costo annuo pari a 100\$, specificando l'indirizzo email per gli alert al superamento dell'80\%.
+    \item \textbf{Impostazione AWS Budget:} Dalla sezione "Billing", accedere a "Budgets" e creare un budget di costo mensile pari a 100\$, specificando l'indirizzo email per gli alert al superamento dell'80\%.
 \end{enumerate}
 
 \textbf{TODO: Inserire qui alcuni screenshot della console AWS (es. lista delle istanze EC2 in esecuzione e la dashboard del Load Balancer).}
