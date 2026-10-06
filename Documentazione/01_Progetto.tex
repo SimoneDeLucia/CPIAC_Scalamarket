@@ -3,7 +3,12 @@
 \begin{mysection}{Descrizione Generale}
 Scalamarket è una moderna piattaforma e-commerce basata su un'architettura a microservizi, progettata per garantire elevata scalabilità, affidabilità e flessibilità. Il sistema gestisce l'intero ciclo di vita dell'acquisto online: dalla registrazione degli utenti, alla consultazione del catalogo, fino all'elaborazione degli ordini e alla gestione logistica delle spedizioni. L'intera infrastruttura è stata ideata per essere distribuita in modo efficiente tramite Kubernetes ed eventualmente ospitata in ambiente cloud AWS, fornendo un backend solido, scalabile e supportato da API RESTful.
 
-\textbf{TODO: Inserire qui un diagramma ad alto livello dell'architettura di Scalamarket (Microservizi, Frontend, Database).}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{img/ComponentDiagram.png}
+    \caption{Diagramma dei Componenti UML}
+    \label{fig:component_diagram}
+\end{figure}
 \end{mysection}
 
 \begin{mysection}{Requisiti dell'Applicativo}
@@ -16,7 +21,12 @@ L'applicativo è stato sviluppato per soddisfare una serie di requisiti architet
     \item \textbf{Architettura a Microservizi e Dati Isolati:} Per massimizzare la modularità, ogni servizio deve possedere una propria logica di business e interfacciarsi con il proprio database PostgreSQL indipendente, disaccoppiando così i domini applicativi.
 \end{itemize}
 
-\textbf{TODO: Inserire qui un diagramma Entità-Relazione (ER) per i database o un flowchart della logica di allocazione degli ordini.}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{img/SequenceDiagram.png}
+    \caption{Diagramma di Sequenza}
+    \label{fig:sequence_diagram}
+\end{figure}
 \end{mysection}
 
 \begin{mysection}{Il Sito Web implementato con Flask}
@@ -26,6 +36,13 @@ Il lato client e il pannello di gestione amministrativa sono stati realizzati me
     \item \textbf{Interfaccia Cliente:} L'utente può scorrere l'intero catalogo, visualizzare i prezzi e le disponibilità massime, aggiungere elementi al carrello e, una volta inviato l'ordine, monitorarne lo stato e i dettagli dei prodotti tramite un'apposita cronologia.
     \item \textbf{Interfaccia Amministratore:} L'admin ha accesso a una dashboard completa che gli permette di gestire l'inventario (con possibilità di ricerca rapida tramite nome e identificativo), controllare in tempo reale lo stato logistico (veicoli in uso, totali e disponibili), visionare lo storico ordini globale e monitorare/eliminare gli account utenti.
 \end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{img/UseCaseDiagram.png}
+    \caption{Diagramma dei Casi d'Uso}
+    \label{fig:use_case_diagram}
+\end{figure}
 
 \textbf{TODO: Inserire qui degli screenshot rappresentativi delle schermate del sito web (es. Dashboard Utente, Pannello di Controllo Admin).}
 \end{mysection}
@@ -85,7 +102,12 @@ Le rotte implementate rispecchiano la suddivisione logica dell'API:
     \item \texttt{/api/orders/} $\rightarrow$ \texttt{order-service:5003} --- endpoint ordini, storico e logistica.
 \end{itemize}
 
-\textbf{TODO: Inserire qui un diagramma del flusso di rete: Client $\rightarrow$ Ingress $\rightarrow$ ClusterIP Service $\rightarrow$ Pod replica.}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{img/NetworkFlowDiagram.png}
+    \caption{Flusso di Rete Kubernetes e Ingress}
+    \label{fig:network_flow}
+\end{figure}
 
 \textbf{TODO: Inserire qui lo screenshot dell'output di \texttt{kubectl get ingress} e \texttt{kubectl get pods} con le repliche attive.}
 \end{mysection}

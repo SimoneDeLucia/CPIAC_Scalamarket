@@ -22,7 +22,7 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
-# Public Subnet
+# Public Subnet 1
 resource "aws_subnet" "public_subnet" {
   vpc_id                  = aws_vpc.main_vpc.id
   cidr_block              = "10.0.1.0/24"
@@ -30,7 +30,19 @@ resource "aws_subnet" "public_subnet" {
   availability_zone       = "${var.aws_region}a"
 
   tags = {
-    Name = "scalamarket-public-subnet"
+    Name = "scalamarket-public-subnet-1"
+  }
+}
+
+# Public Subnet 2 (Required for ALB)
+resource "aws_subnet" "public_subnet_2" {
+  vpc_id                  = aws_vpc.main_vpc.id
+  cidr_block              = "10.0.2.0/24"
+  map_public_ip_on_launch = true
+  availability_zone       = "${var.aws_region}b"
+
+  tags = {
+    Name = "scalamarket-public-subnet-2"
   }
 }
 
@@ -50,6 +62,11 @@ resource "aws_route_table" "public_rt" {
 
 resource "aws_route_table_association" "public_rta" {
   subnet_id      = aws_subnet.public_subnet.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+resource "aws_route_table_association" "public_rta_2" {
+  subnet_id      = aws_subnet.public_subnet_2.id
   route_table_id = aws_route_table.public_rt.id
 }
 
@@ -95,9 +112,26 @@ resource "aws_security_group" "k8s_sg" {
   }
 }
 
+# Dynamic AMI Lookup for Ubuntu 22.04 LTS
+data "aws_ami" "ubuntu" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["099720109477"] # Canonical
+}
+
 # EC2 Instances per Kubernetes (K3s) - Singolo Nodo per rientrare nel budget
 resource "aws_instance" "k8s_node" {
-  ami           = var.ami_id
+  ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
   subnet_id     = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.k8s_sg.id]
@@ -115,7 +149,7 @@ resource "aws_lb" "k8s_alb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.k8s_sg.id]
-  subnets            = [aws_subnet.public_subnet.id]
+  subnets            = [aws_subnet.public_subnet.id, aws_subnet.public_subnet_2.id]
 
   tags = {
     Name = "scalamarket-alb"

@@ -41,7 +41,7 @@ Questo documento presenta tutti gli endpoint implementati nell'applicativo Scala
 \hline
 & \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
 \hline
-\cellcolor{red!80}\textcolor{white}{\textbf{POST}} & Registra un nuovo amministratore. & \texttt{\{username, password\}} & 201 (Created) \newline 400 (Bad Request) \\
+\cellcolor{red!80}\textcolor{white}{\textbf{POST}} & Registra un nuovo amministratore o gestore filiale. & \texttt{\{username, password, role, location\_id\}} & 201 (Created) \newline 400 (Bad Request) \\
 \hline
 \rowcolor{black}
 \multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/login}}} \\
@@ -114,7 +114,21 @@ Questo documento presenta tutti gli endpoint implementati nell'applicativo Scala
 \hline
 & \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
 \hline
-\cellcolor{orange!80}\textcolor{white}{\textbf{PUT}} & Aggiorna la quantità di giacenza di un articolo in una specifica filiale. & \texttt{\{article\_id, location\_id, quantity\}} & 200 (OK) \newline 404 (Not Found) \\
+\cellcolor{orange!80}\textcolor{white}{\textbf{PUT}} & Aggiorna la quantità di giacenza di un articolo in una specifica filiale. & \texttt{\{article\_id, location\_id, quantity\}} & 200 (OK) \newline 400 (Bad Request) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/article/\textless id\textgreater}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{purple!80}\textcolor{white}{\textbf{DELETE}} & Rimuove definitivamente un articolo dal catalogo e tutte le sue giacenze. & Nessuno (id nell'URL) & 200 (OK) \newline 404 (Not Found) \\
+\hline
+\rowcolor{black}
+\multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/inventory/\textless article\_id\textgreater/\textless location\_id\textgreater}}} \\
+\hline
+& \textbf{Descrizione} & \textbf{Parametri Richiesti} & \textbf{Codici HTTP} \\
+\hline
+\cellcolor{purple!80}\textcolor{white}{\textbf{DELETE}} & Rimuove una specifica voce di inventario per un articolo in una filiale. & Nessuno (nell'URL) & 200 (OK) \newline 404 (Not Found) \\
 \hline
 \rowcolor{black}
 \multicolumn{4}{|l|}{\textcolor{white}{\textbf{/admin/internal/allocate}}} \\

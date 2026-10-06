@@ -1,0 +1,49 @@
+\begin{mychapter}{Proposte di Integrazione e Sviluppo Futuro}
+
+Questo capitolo presenta le proposte per l'evoluzione dell'architettura e per l'esecuzione di test prestazionali.
+
+\begin{mysection}{Panoramiche sull'utilizzo in locale (On-Premise / Edge Computing)}
+L'architettura a microservizi basata su K3s (una versione leggera di Kubernetes) \`e perfetta per essere eseguita anche al di fuori del Cloud, sfruttando l'hardware locale. 
+
+\subsubsection*{Scenario A: Cluster On-Premise con PC Fissi e Portatili}
+Invece di usare macchine virtuali su AWS, \`e possibile creare un \textbf{cluster fisico locale}.
+\begin{itemize}
+    \item \textbf{Come funziona:} Un PC desktop mediamente potente viene designato come \textbf{Master Node} (Control Plane). Si collegano poi alla stessa rete LAN 2 o 3 portatili che fungeranno da \textbf{Worker Node}. 
+    \item \textbf{Vantaggi didattici e operativi:} Questo scenario simula perfettamente un vero Data Center aziendale. Permette di dimostrare l'\textbf{High Availability (HA)} spegnendo fisicamente un portatile (simulando un guasto hardware) e osservando Kubernetes che riavvia i Pod (i microservizi) sugli altri nodi superstiti.
+\end{itemize}
+
+\subsubsection*{Scenario B: Utilizzo di microcontrollori (ESP32 / ESP8266) nel sistema}
+Schede come l'ESP32 o l'ESP8266 \textbf{non hanno i requisiti minimi} per eseguire Docker o Kubernetes, avendo risorse di memoria estremamente limitate. Tuttavia, si integrano perfettamente nel sistema agendo da \textbf{IoT Edge Devices} (dispositivi periferici).
+\begin{itemize}
+    \item \textbf{Casi d'uso pratici per Scalamarket:}
+    \begin{enumerate}
+        \item \textbf{Lettore di codici a barre Smart (Warehouse):} Un ESP32 collegato a un modulo scanner. Quando l'operatore di filiale scansiona una merce, l'ESP32 invia una richiesta HTTP \texttt{POST} via Wi-Fi direttamente a \texttt{/api/inventory/} per aggiornare il database delle scorte in tempo reale.
+        \item \textbf{Monitoraggio Flotta (Veicoli):} Un ESP8266 installato sui mezzi logistici, dotato di modulo GPS, esegue chiamate REST periodiche verso l'\texttt{order-service} per aggiornare la posizione del mezzo e lo stato della consegna.
+    \end{enumerate}
+\end{itemize}
+\end{mysection}
+
+\begin{mysection}{Benchmark Prestazionali (Richieste/sec)}
+Per testare l'efficacia della scalabilit\`a introdotta nella piattaforma, si propone l'utilizzo di strumenti gratuiti per load testing come \textbf{Locust} (basato su Python) o \textbf{Apache Bench (ab)}.
+
+\subsubsection*{Test 1: Sfogliare il Catalogo (Read-Intensive)}
+\begin{itemize}
+    \item \textbf{Azione:} Effettuare migliaia di chiamate \texttt{GET /api/inventory/} per scaricare la lista dei prodotti.
+    \item \textbf{Obiettivo:} Misurare le \textbf{RPS (Richieste per Secondo)} massime che il sistema riesce a servire restando sotto i 200 millisecondi di latenza.
+\end{itemize}
+
+\subsubsection*{Test 2: Inserimento Ordini (Write-Intensive e Logica)}
+\begin{itemize}
+    \item \textbf{Azione:} Effettuare chiamate \texttt{POST /api/orders/} con payload JSON validi, simulando centinaia di clienti che effettuano il checkout contemporaneamente.
+    \item \textbf{Obiettivo:} Valutare come si comporta il sistema sotto stress in presenza di transazioni sul database e logica condizionale di allocazione. Confrontando la fase Barebone (1 Pod) con la fase Scalabile (3 Pod), si evidenzier\`a il reale impatto dello scaling orizzontale.
+\end{itemize}
+
+\subsubsection*{Test 3: Spike Test (Picco Improvviso)}
+\begin{itemize}
+    \item \textbf{Azione:} Aumentare bruscamente gli utenti concorrenti (da 10 a 1000 in pochi secondi) su tutte le API.
+    \item \textbf{Obiettivo:} Verificare se l'Ingress restituisce errori 502/503/504 per proteggere i Pod da crolli (OOM).
+\end{itemize}
+
+\end{mysection}
+
+\end{mychapter}

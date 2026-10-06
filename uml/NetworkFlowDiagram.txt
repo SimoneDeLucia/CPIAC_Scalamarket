@@ -1,0 +1,23 @@
+@startuml
+left to right direction
+skinparam componentStyle rectangle
+
+actor "Client (Browser)" as Client
+
+node "Kubernetes Cluster" {
+    component "NGINX Ingress Controller" as Ingress <<Ingress>>
+    component "ClusterIP Service" as Service <<Service>>
+    
+    node "Deployment (Scalamarket App)" {
+        component "Pod Replica 1" as Pod1 <<Pod>>
+        component "Pod Replica 2" as Pod2 <<Pod>>
+        component "Pod Replica 3" as Pod3 <<Pod>>
+    }
+}
+
+Client --> Ingress : HTTP/HTTPS Request
+Ingress --> Service : Routing (Regole Ingress)
+Service --> Pod1 : Bilanciamento del carico interno
+Service --> Pod2 : Bilanciamento del carico interno
+Service --> Pod3 : Bilanciamento del carico interno
+@enduml

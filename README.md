@@ -1,5 +1,6 @@
 # CPIAC Scalamarket
 
+![ScalaMarket](Documentazione/img/Scalamarket.jpg)
 Benvenuti nel repository del progetto **Scalamarket**. Questa guida fornisce le istruzioni per avviare il progetto localmente (fase di sviluppo/test) e per effettuare il deployment in cloud su AWS tramite Terraform.
 
 ---
@@ -48,7 +49,12 @@ minikube ip
 
 ## 2. Guida all'Implementazione su AWS (Terraform)
 
-Per automatizzare il provisioning in Cloud, l'infrastruttura è gestita tramite **Terraform**. Assicurati di aver configurato le tue credenziali AWS (`aws configure`).
+Per automatizzare il provisioning in Cloud, l'infrastruttura è gestita tramite **Terraform**. 
+La configurazione iniziale include:
+- **Controllo dei costi (AWS Budget):** Seguendo le best practice, è impostato un budget mensile di 100$. Un allarme avviserà via email qualora le spese superino l'80% di questa soglia.
+- **Application Load Balancer (ALB):** È configurato un ALB con due Subnet pubbliche in Availability Zone separate (requisito obbligatorio di AWS) che indirizza il traffico verso la nostra istanza EC2.
+
+Assicurati di aver configurato le tue credenziali AWS (`aws configure`).
 
 ```bash
 cd terraform/
@@ -69,6 +75,17 @@ Una volta avviata l'infrastruttura EC2, sarà possibile connettersi ai nodi per 
 
 ## 3. Schemi Architetturali
 
+### UML (Unified Modeling Language)
+
+**Component Diagram (Microservizi e Ingress)**  
+![Component Diagram](Documentazione/img/ComponentDiagram.png)
+
+**Sequence Diagram (Flusso logistica e ordini)**  
+![Sequence Diagram](Documentazione/img/SequenceDiagram.png)
+
+**Use Case Diagram (Separazione dei poteri)**  
+![Use Case Diagram](Documentazione/img/UseCaseDiagram.png)
+
 ### Architettura AWS (Terraform)
 ```text
           [ Internet ]
@@ -77,13 +94,13 @@ Una volta avviata l'infrastruttura EC2, sarà possibile connettersi ai nodi per 
           |    IGW    |  (Internet Gateway)
           +-----+-----+
                 |
-   +------------v------------+ (VPC: 10.0.0.0/16)
-   |       AWS ALB           | (Application Load Balancer)
-   |  (Subnet Pubblica)      |
-   +------------+------------+
+   +------------v----------------------------+ (VPC: 10.0.0.0/16)
+   |           AWS Application Load Balancer |
+   |  (Subnet Pubblica A) (Subnet Pubblica B)|
+   +------------+----------------------------+
                 |
         +-------v-------+ 
-        | EC2 K8s Node  | (Singola Istanza)
+        | EC2 K8s Node  | (Singola Istanza in AZ a)
         | (t3.medium)   |
         +---------------+
 ```

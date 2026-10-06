@@ -14,6 +14,8 @@ I file Terraform implementati (\texttt{main.tf}, \texttt{variables.tf}, \texttt{
     \item \textbf{AWS Budgets:} Per evitare costi imprevisti, è configurato un \textit{Monthly Budget} con limite di spesa pari a 100 USD mensili, che invia alert via email se i costi superano la soglia dell'80\%. L'utilizzo di un singolo nodo garantisce il rispetto di tale budget pur mantenendo l'Application Load Balancer.
 \end{itemize}
 
+\textbf{TODO: Inserire qui uno schema grafico dell'Architettura AWS Standard (VPC, Security Group, EC2, ALB).}
+
 I passi per eseguire lo script sono i seguenti:
 \begin{enumerate}
     \item Inizializzazione dell'ambiente con \texttt{terraform init}.
