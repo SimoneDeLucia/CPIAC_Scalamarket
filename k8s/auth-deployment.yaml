@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: cpiac_auth:v5
+          image: cpiac_auth:v6
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5001

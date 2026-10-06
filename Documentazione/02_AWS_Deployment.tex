@@ -102,6 +102,13 @@ L'infrastruttura a questo punto è in esecuzione, ma le applicazioni devono anco
     sudo kubectl apply -f k8s/order-service.yaml
     sudo kubectl apply -f k8s/ingress.yaml
     \end{verbatim}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\textwidth]{img/kubectl_client.png}
+        \caption{Verifica dello stato dei Pod sul Nodo Clienti AWS}
+        \label{fig:kubectl_client}
+    \end{figure}
     
     \item \textbf{Deploy K8s - Nodo Admin:}
     \begin{verbatim}
@@ -119,6 +126,13 @@ L'infrastruttura a questo punto è in esecuzione, ma le applicazioni devono anco
     sudo kubectl apply -f k8s/inventory-service.yaml
     sudo kubectl apply -f k8s/ingress.yaml
     \end{verbatim}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\textwidth]{img/kubectl_admin.png}
+        \caption{Verifica dello stato dei Pod sul Nodo Admin AWS}
+        \label{fig:kubectl_admin}
+    \end{figure}
     \item \textbf{Navigazione:} Accedere dal browser non tramite gli IP delle macchine, ma tramite l'URL fornito dall'Application Load Balancer: \url{http://scalamarket-alb-171741115.eu-south-1.elb.amazonaws.com}. L'ALB smisterà automaticamente il traffico basandosi sul \textit{path} dell'URL.
 \end{itemize}
 

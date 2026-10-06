@@ -34,7 +34,8 @@ Il lato client e il pannello di gestione amministrativa sono stati realizzati me
 
 \begin{itemize}
     \item \textbf{Interfaccia Cliente:} L'utente può scorrere l'intero catalogo, visualizzare i prezzi e le disponibilità massime, aggiungere elementi al carrello e, una volta inviato l'ordine, monitorarne lo stato e i dettagli dei prodotti tramite un'apposita cronologia.
-    \item \textbf{Interfaccia Amministratore:} L'admin ha accesso a una dashboard completa che gli permette di gestire l'inventario (con possibilità di ricerca rapida tramite nome e identificativo), controllare in tempo reale lo stato logistico (veicoli in uso, totali e disponibili), visionare lo storico ordini globale e monitorare/eliminare gli account utenti.
+    \item \textbf{Interfaccia Amministratore Globale:} L'admin ha accesso a una dashboard completa che gli permette di visualizzare l'inventario globale (con possibilità di ricerca rapida), controllare in tempo reale lo stato logistico totale, visionare ed eliminare lo storico ordini globale e monitorare/eliminare gli account utenti.
+    \item \textbf{Interfaccia Gestore Filiale:} Il gestore ha una visione limitata esclusivamente alle giacenze e ai veicoli della propria sede, con i poteri esclusivi di poter aggiungere o rimuovere articoli dal catalogo, e aggiornare le scorte e i mezzi assegnati alla filiale.
 \end{itemize}
 
 \begin{figure}[h]
@@ -112,7 +113,21 @@ I componenti dell'infrastruttura Barebone sono i seguenti:
     \item \textbf{postgres}: Deployment con 1 replica, con storage persistente garantito da un \texttt{PersistentVolume} (PV) e un \texttt{PersistentVolumeClaim} (PVC). Il Service è di tipo \texttt{ClusterIP} sulla porta 5432.
 \end{itemize}
 
-\textbf{TODO: Inserire qui uno screenshot dell'output di \texttt{kubectl get pods} (o similari) per la verifica del deployment in ambiente locale (es. Minikube/Docker Desktop).}
+Di seguito viene riportato l'output dell'ambiente locale in esecuzione, che conferma lo stato \texttt{Running} di tutti i pod (in questo caso scalati a 1 replica ciascuno per ottimizzazione delle risorse di elaborazione) e la corretta visualizzazione della piattaforma dal browser locale.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/kubectl_local.png}
+    \caption{Output del comando \texttt{kubectl get pods} nell'ambiente locale}
+    \label{fig:kubectl_local}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/local_deployment.png}
+    \caption{Piattaforma correttamente avviata ed esposta tramite localhost}
+    \label{fig:local_deployment}
+\end{figure}
 
 I limiti principali di questa configurazione sono:
 \begin{itemize}
@@ -150,12 +165,7 @@ Le rotte implementate rispecchiano la suddivisione logica dell'API:
     \item \texttt{/api/orders/} $\rightarrow$ \texttt{order-service:5003} --- endpoint ordini, storico e logistica.
 \end{itemize}
 
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\textwidth]{img/NetworkFlowDiagram.png}
-    \caption{Flusso di Rete Kubernetes e Ingress}
-    \label{fig:network_flow}
-\end{figure}
+
 
 \textbf{TODO: Inserire qui lo screenshot dell'output di \texttt{kubectl get ingress} e \texttt{kubectl get pods} con le repliche attive.}
 \end{mysection}
@@ -165,10 +175,10 @@ Le rotte implementate rispecchiano la suddivisione logica dell'API:
 \subsubsection*{Fase 1 -- Avvio Barebone}
 \begin{lstlisting}[language=bash, caption={Avvio infrastruttura Barebone}]
 # Build immagini Docker (dalla root del progetto)
-docker build -t cpiac_frontend:v5 -f frontend/Dockerfile frontend/
-docker build -t cpiac_auth:v5     -f microservices/auth_service/Dockerfile .
-docker build -t cpiac_inventory:v5 -f microservices/inventory_service/Dockerfile .
-docker build -t cpiac_order:v5    -f microservices/order_service/Dockerfile .
+docker build -t cpiac_frontend:v6 -f frontend/Dockerfile frontend/
+docker build -t cpiac_auth:v6     -f microservices/auth_service/Dockerfile .
+docker build -t cpiac_inventory:v6 -f microservices/inventory_service/Dockerfile .
+docker build -t cpiac_order:v6    -f microservices/order_service/Dockerfile .
 
 # Deploy di tutte le risorse Kubernetes
 kubectl apply -f k8s/
@@ -184,22 +194,34 @@ kubectl get pods  # Verifica stato
 \subsubsection*{Fase 2 -- Avvio con Ridondanza e Ingress}
 \begin{lstlisting}[language=bash, caption={Avvio infrastruttura con repliche e Ingress}]
 # (Una-tantum) Installazione NGINX Ingress Controller
-# In Minikube:
-minikube addons enable ingress
-
-# In un cluster generico (kubeadm, kind, cloud):
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/\
 controller-v1.10.0/deploy/static/provider/cloud/deploy.yaml
 
-# Deploy di tutte le risorse (i deployment aggiornati hanno gia' le repliche)
-kubectl apply -f k8s/
+# Deploy delle risorse base (escludendo ingress.yaml di default per AWS)
+kubectl apply -f k8s/postgres-pv-pvc.yaml
+kubectl apply -f k8s/postgres-configmap.yaml
+kubectl apply -f k8s/postgres-deployment.yaml
+kubectl apply -f k8s/postgres-service.yaml
+kubectl apply -f k8s/frontend-deployment.yaml
+kubectl apply -f k8s/frontend-service.yaml
+kubectl apply -f k8s/auth-deployment.yaml
+kubectl apply -f k8s/auth-service.yaml
+kubectl apply -f k8s/inventory-deployment.yaml
+kubectl apply -f k8s/inventory-service.yaml
+kubectl apply -f k8s/order-deployment.yaml
+kubectl apply -f k8s/order-service.yaml
+
+# Applicazione dell'Ingress specifico locale compatibile con NGINX
+kubectl apply -f k8s/ingress-local.yaml
+
+# (Opzionale) Scalare i pod a 1 replica in caso di limitazioni CPU in locale
+kubectl scale deployment frontend auth-service inventory-service order-service --replicas=1
 
 # Verifica repliche e stato Ingress
 kubectl get pods
 kubectl get ingress
 
-# (Solo Minikube) Accesso via browser
-minikube ip  # Usa l'IP ottenuto per navigare su http://<minikube-ip>/
+# Accesso via browser: Naviga utilizzando l'indirizzo esposto dall'Ingress (localhost o l'IP ottenuto)
 \end{lstlisting}
 
 Per azzerare e ricreare l'intera infrastruttura da zero (ad esempio dopo una modifica strutturale al database):

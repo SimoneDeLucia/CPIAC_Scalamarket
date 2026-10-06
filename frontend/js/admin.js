@@ -88,21 +88,21 @@ async function showDashboard() {
     document.getElementById('panel-inventory-global').style.display = 'block'; // Visibile a entrambi
     document.getElementById('panel-users').style.display = isAdmin ? 'block' : 'none';
     
-    // Se gestore filiale, blocchiamo le select alla propria filiale
+    // Se gestore filiale, mostriamo la sua filiale nei testi fissi
     if (isBranchManager) {
-        document.getElementById('inv-loc-id').value = state.user.location_id;
-        document.getElementById('inv-loc-id').disabled = true;
-        document.getElementById('log-loc-id').value = state.user.location_id;
-        document.getElementById('log-loc-id').disabled = true;
-        document.getElementById('art-qty-1').disabled = state.user.location_id !== 1;
-        document.getElementById('art-qty-2').disabled = state.user.location_id !== 2;
-        document.getElementById('art-qty-3').disabled = state.user.location_id !== 3;
+        document.getElementById('inv-loc-text').textContent = `Filiale Selezionata: ${state.user.location_id}`;
+        document.getElementById('log-loc-text').textContent = `Filiale Selezionata: ${state.user.location_id}`;
+    }
+    
+    // Nascondi le colonne dell'inventario per le filiali che non competono al gestore
+    if (isBranchManager) {
+        document.querySelector('.col-branch-1').style.display = state.user.location_id === 1 ? 'table-cell' : 'none';
+        document.querySelector('.col-branch-2').style.display = state.user.location_id === 2 ? 'table-cell' : 'none';
+        document.querySelector('.col-branch-3').style.display = state.user.location_id === 3 ? 'table-cell' : 'none';
     } else {
-        document.getElementById('inv-loc-id').disabled = false;
-        document.getElementById('log-loc-id').disabled = false;
-        document.getElementById('art-qty-1').disabled = false;
-        document.getElementById('art-qty-2').disabled = false;
-        document.getElementById('art-qty-3').disabled = false;
+        document.querySelector('.col-branch-1').style.display = 'table-cell';
+        document.querySelector('.col-branch-2').style.display = 'table-cell';
+        document.querySelector('.col-branch-3').style.display = 'table-cell';
     }
     
     resetInactivityTimer();
@@ -147,6 +147,9 @@ async function loadGlobalData() {
     // Carica Inventario
     try {
         state.inventory = await InventoryAPI.getInventory(locId);
+        if (isBranchManager) {
+            state.inventory = state.inventory.filter(i => i.branches && i.branches[locId] > 0);
+        }
         renderInventoryTable(state.inventory);
     } catch(e) {
         console.error("Errore inventario:", e);
@@ -159,7 +162,7 @@ async function loadGlobalData() {
         let logHtml = '';
         if(logs.length === 0) logHtml = '<tr><td colspan="5" style="padding:0.5rem;">Nessun dato logistico.</td></tr>';
         logs.forEach(l => {
-            let deleteBtnHtml = state.user.role === 'admin' ? 
+            let deleteBtnHtml = state.user.role === 'branch_manager' ? 
                 `<button class="btn secondary-btn" style="padding: 0.2rem; font-size: 0.7rem; background-color: var(--danger);" onclick="deleteLogistics(${l.location_id})">Elimina</button>` : '';
             logHtml += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <td style="padding: 0.5rem;">Filiale ${l.location_id}</td>
@@ -203,8 +206,10 @@ async function loadGlobalData() {
                 
                 let locsCell = isBranchManager ? '' : `<td style="padding: 0.5rem;">${locs}</td>`;
                 
+                let deleteBtn = isAdmin ? `<button class="btn secondary-btn" style="padding: 0.1rem 0.3rem; font-size: 0.7rem; background-color: var(--danger); margin-left: 0.5rem;" onclick="deleteOrder(${o.id})">Elimina</button>` : '';
+
                 ordHtml += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <td style="padding: 0.5rem;"><strong>#${o.id}</strong></td>
+                    <td style="padding: 0.5rem;"><strong>#${o.id}</strong> ${deleteBtn}</td>
                     <td style="padding: 0.5rem; font-size: 0.8rem;">${productNames}</td>
                     <td style="padding: 0.5rem;">${userName}</td>
                     ${locsCell}
@@ -226,17 +231,32 @@ function renderInventoryTable(items) {
         inventoryList.innerHTML = '<tr><td colspan="7" style="padding: 0.5rem;">Nessun dato.</td></tr>';
         return;
     }
+    const isBranchManager = state.user && state.user.role === 'branch_manager';
+    const locId = state.user ? state.user.location_id : null;
+
     items.forEach(i => {
-        let deleteBtnHtml = state.user && state.user.role === 'admin' ? 
+        let deleteBtnHtml = state.user && state.user.role === 'branch_manager' ? 
             `<button class="btn secondary-btn" style="padding: 0.1rem 0.3rem; font-size: 0.7rem; background-color: var(--danger); margin-left: 0.5rem;" onclick="deleteArticle(${i.id})">Elimina</button>` : '';
+        
+        let branchCols = '';
+        if (isBranchManager) {
+            if (locId === 1) branchCols = `<td style="padding: 0.5rem;">${i.branches['1'] || 0}</td><td style="display:none;"></td><td style="display:none;"></td>`;
+            else if (locId === 2) branchCols = `<td style="display:none;"></td><td style="padding: 0.5rem;">${i.branches['2'] || 0}</td><td style="display:none;"></td>`;
+            else if (locId === 3) branchCols = `<td style="display:none;"></td><td style="display:none;"></td><td style="padding: 0.5rem;">${i.branches['3'] || 0}</td>`;
+        } else {
+            branchCols = `
+                <td style="padding: 0.5rem;">${i.branches['1'] || 0}</td>
+                <td style="padding: 0.5rem;">${i.branches['2'] || 0}</td>
+                <td style="padding: 0.5rem;">${i.branches['3'] || 0}</td>
+            `;
+        }
+
         invHtml += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
             <td style="padding: 0.5rem;">${i.id}</td>
             <td style="padding: 0.5rem; font-weight:bold;">${i.name} ${deleteBtnHtml}</td>
             <td style="padding: 0.5rem; color: var(--primary);">${i.total_available}</td>
             <td style="padding: 0.5rem; color: var(--success);">${i.total_sales || 0}</td>
-            <td style="padding: 0.5rem;">${i.branches['1'] || 0}</td>
-            <td style="padding: 0.5rem;">${i.branches['2'] || 0}</td>
-            <td style="padding: 0.5rem;">${i.branches['3'] || 0}</td>
+            ${branchCols}
         </tr>`;
     });
     inventoryList.innerHTML = invHtml;
@@ -256,9 +276,11 @@ document.getElementById('btn-add-article').addEventListener('click', async () =>
     const name = document.getElementById('art-name').value;
     const desc = document.getElementById('art-desc').value;
     const price = parseFloat(document.getElementById('art-price').value);
-    const q1 = parseInt(document.getElementById('art-qty-1').value) || 0;
-    const q2 = parseInt(document.getElementById('art-qty-2').value) || 0;
-    const q3 = parseInt(document.getElementById('art-qty-3').value) || 0;
+    
+    let quantities = { "1": 0, "2": 0, "3": 0 };
+    if (state.user && state.user.role === 'branch_manager') {
+        quantities[state.user.location_id.toString()] = parseInt(document.getElementById('art-qty-loc').value) || 0;
+    }
     const msg = document.getElementById('msg-add-article');
     
     if(!name || !price) {
@@ -272,16 +294,16 @@ document.getElementById('btn-add-article').addEventListener('click', async () =>
             name, 
             description: desc, 
             price,
-            quantities: { "1": q1, "2": q2, "3": q3 }
+            quantities: quantities
         });
         msg.textContent = 'Articolo inserito con successo.';
         msg.style.color = 'var(--success)';
         document.getElementById('art-name').value = '';
         document.getElementById('art-desc').value = '';
         document.getElementById('art-price').value = '';
-        document.getElementById('art-qty-1').value = '0';
-        document.getElementById('art-qty-2').value = '0';
-        document.getElementById('art-qty-3').value = '0';
+        if (state.user && state.user.role === 'branch_manager') {
+            document.getElementById('art-qty-loc').value = '0';
+        }
         loadGlobalData();
     } catch(e) {
         msg.textContent = e.message;
@@ -292,7 +314,7 @@ document.getElementById('btn-add-article').addEventListener('click', async () =>
 // Aggiorna Giacenza
 document.getElementById('btn-update-inv').addEventListener('click', async () => {
     const artId = document.getElementById('inv-art-id').value;
-    const locId = document.getElementById('inv-loc-id').value;
+    const locId = state.user.location_id;
     const qty = document.getElementById('inv-qty').value;
     const msg = document.getElementById('msg-update-inv');
     
@@ -311,7 +333,7 @@ document.getElementById('btn-update-inv').addEventListener('click', async () => 
 
 // Aggiorna Logistica
 document.getElementById('btn-update-log').addEventListener('click', async () => {
-    const locId = document.getElementById('log-loc-id').value;
+    const locId = state.user.location_id;
     const qty = document.getElementById('log-qty').value;
     const msg = document.getElementById('msg-update-log');
     
@@ -396,6 +418,17 @@ window.deleteLogistics = async (locationId) => {
         await loadGlobalData();
     } catch(e) {
         alert("Errore durante l'eliminazione della logistica: " + e.message);
+    }
+};
+
+window.deleteOrder = async (orderId) => {
+    if(!confirm(`Sei sicuro di voler eliminare l'ordine #${orderId}?`)) return;
+    try {
+        await OrderAPI.deleteOrder(orderId);
+        alert("Ordine eliminato.");
+        await loadGlobalData();
+    } catch(e) {
+        alert("Errore durante l'eliminazione dell'ordine: " + e.message);
     }
 };
 

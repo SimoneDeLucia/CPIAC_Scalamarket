@@ -6,16 +6,16 @@ Il progetto mira a realizzare una piattaforma web per la gestione di una catena 
 * **Lato Cliente:**
     * Visualizzazione del catalogo articoli disponibili.
     * Effettuazione di ordini e monitoraggio dello stato di spedizione.
-    * Gestione e visualizzazione del proprio profilo utente.
+    * Visualizzazione del proprio profilo utente e dello storico ordini effettuati.
 * **Lato Amministrazione (Ruoli Separati):**
     * **Amministratore Globale:** 
         * Gestione e visualizzazione degli utenti registrati della piattaforma web.
-        * Eliminazione degli articoli dal catalogo e rimozione veicoli.
+        * Eliminazione degli ordini.
         * Visualizzazione della tabella globale di logistica e utilizzo mezzi.
     * **Gestore Filiale:**
         * Visualizzazione mirata degli articoli e dei veicoli a disposizione della propria filiale.
         * Aggiunta e rimozione di articoli, giacenze e mezzi esclusivamente limitati alla propria filiale.
-        * L'infrastruttura è Multi-Tenant: l'accesso di una filiale avviene su un singolo sistema (Pod) partizionato logicamente per `location_id`.
+        * L'infrastruttura implementa una Multi-Tenancy logica: le diverse filiali convergono verso un singolo sistema (Pod) che partiziona i dati e gli accessi filtrando per `location_id`.
 * **Logica di Business (Routing degli Ordini):**
     * Quando un utente autenticato effettua un ordine, il sistema valuta dinamicamente la disponibilità degli articoli richiesti nelle varie sedi e la disponibilità dei mezzi logistici, calcolando e assegnando la filiale ottimale da cui far partire la consegna.
 

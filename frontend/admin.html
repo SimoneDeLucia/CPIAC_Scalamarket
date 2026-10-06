@@ -65,11 +65,9 @@
                         <input type="text" id="art-name" class="form-control" placeholder="Nome" style="margin-bottom: 0.5rem;">
                         <input type="text" id="art-desc" class="form-control" placeholder="Descrizione" style="margin-bottom: 0.5rem;">
                         <input type="number" step="0.01" id="art-price" class="form-control" placeholder="Prezzo" style="margin-bottom: 1rem;">
-                        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Giacenza Iniziale:</p>
+                        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Giacenza Iniziale (tua filiale):</p>
                         <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                            <input type="number" id="art-qty-1" class="form-control" placeholder="Fil. 1" min="0" value="0">
-                            <input type="number" id="art-qty-2" class="form-control" placeholder="Fil. 2" min="0" value="0">
-                            <input type="number" id="art-qty-3" class="form-control" placeholder="Fil. 3" min="0" value="0">
+                            <input type="number" id="art-qty-loc" class="form-control" placeholder="Quantità Iniziale" min="0" value="0">
                         </div>
                         <button id="btn-add-article" class="btn secondary-btn" style="width: 100%;">Aggiungi</button>
                         <div id="msg-add-article" style="margin-top: 0.5rem; font-size: 0.8rem;"></div>
@@ -81,11 +79,7 @@
                     <h3>Gestione Inventario</h3>
                     <div style="margin-top: 1rem;">
                         <input type="number" id="inv-art-id" class="form-control" placeholder="ID Articolo" style="margin-bottom: 0.5rem;">
-                        <select id="inv-loc-id" class="form-control" style="margin-bottom: 0.5rem;">
-                            <option value="1">Filiale 1</option>
-                            <option value="2">Filiale 2</option>
-                            <option value="3">Filiale 3</option>
-                        </select>
+                        <div id="inv-loc-text" style="margin-bottom: 0.5rem; font-weight: 500; color: var(--primary);">Filiale Selezionata: -</div>
                         <input type="number" id="inv-qty" class="form-control" placeholder="Nuova Quantità" style="margin-bottom: 1rem;">
                         <button id="btn-update-inv" class="btn secondary-btn" style="width: 100%;">Aggiorna</button>
                         <div id="msg-update-inv" style="margin-top: 0.5rem; font-size: 0.8rem;"></div>
@@ -114,11 +108,7 @@
                         </div>
                         <div id="panel-add-logistics" style="flex: 1; min-width: 200px; padding-left: 1rem; border-left: 1px solid var(--border);">
                             <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Aggiungi o Rimuovi Mezzi</p>
-                            <select id="log-loc-id" class="form-control" style="margin-bottom: 0.5rem;">
-                                <option value="1">Filiale 1</option>
-                                <option value="2">Filiale 2</option>
-                                <option value="3">Filiale 3</option>
-                            </select>
+                            <div id="log-loc-text" style="margin-bottom: 0.5rem; font-weight: 500; color: var(--primary);">Filiale Selezionata: -</div>
                             <input type="number" id="log-qty" class="form-control" placeholder="Nuovo numero Totale" style="margin-bottom: 1rem;">
                             <button id="btn-update-log" class="btn secondary-btn" style="width: 100%;">Aggiorna Totale</button>
                             <div id="msg-update-log" style="margin-top: 0.5rem; font-size: 0.8rem;"></div>
@@ -143,9 +133,9 @@
                                     <th style="padding: 0.5rem;">Nome</th>
                                     <th style="padding: 0.5rem;">Disp. Totale</th>
                                     <th style="padding: 0.5rem;">Vendite Totali</th>
-                                    <th style="padding: 0.5rem;">Filiale 1</th>
-                                    <th style="padding: 0.5rem;">Filiale 2</th>
-                                    <th style="padding: 0.5rem;">Filiale 3</th>
+                                    <th style="padding: 0.5rem;" class="col-branch-1">Filiale 1</th>
+                                    <th style="padding: 0.5rem;" class="col-branch-2">Filiale 2</th>
+                                    <th style="padding: 0.5rem;" class="col-branch-3">Filiale 3</th>
                                 </tr>
                             </thead>
                             <tbody id="inventory-list">

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: inventory-service
-          image: cpiac_inventory:v5
+          image: cpiac_inventory:v6
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5002

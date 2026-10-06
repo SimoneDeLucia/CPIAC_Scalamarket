@@ -19,6 +19,16 @@ def get_all_orders():
         
     return jsonify([order.to_dict() for order in orders])
 
+@admin_bp.route('/orders/<int:order_id>', methods=['DELETE'])
+def delete_order(order_id):
+    order = Order.query.get(order_id)
+    if order:
+        # Logistics is tricky to restore, but we simply delete the order
+        db.session.delete(order)
+        db.session.commit()
+        return jsonify({'message': 'Order deleted successfully'}), 200
+    return jsonify({'error': 'Order not found'}), 404
+
 @admin_bp.route('/logistics', methods=['GET'])
 def get_logistics():
     location_id_filter = request.args.get('location_id')

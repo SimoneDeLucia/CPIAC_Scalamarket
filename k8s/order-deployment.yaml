@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: cpiac_order:v5
+          image: cpiac_order:v6
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5003

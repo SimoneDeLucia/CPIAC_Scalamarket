@@ -102,6 +102,9 @@ const OrderAPI = {
         const url = locationId ? `/admin/orders?location_id=${locationId}` : '/admin/orders';
         return fetchApi('order', url);
     },
+    deleteOrder: async (orderId) => {
+        return fetchApi('order', `/admin/orders/${orderId}`, { method: 'DELETE' });
+    },
     getLogistics: async (locationId = null) => {
         const url = locationId ? `/admin/logistics?location_id=${locationId}` : '/admin/logistics';
         return fetchApi('order', url);

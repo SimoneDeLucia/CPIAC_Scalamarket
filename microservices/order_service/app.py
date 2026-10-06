@@ -17,8 +17,8 @@ def create_app():
         from routes.client import client_bp
         from routes.admin import admin_bp
         
-        app.register_blueprint(client_bp, url_prefix='/client')
-        app.register_blueprint(admin_bp, url_prefix='/admin')
+        app.register_blueprint(client_bp, url_prefix='/api/orders/client')
+        app.register_blueprint(admin_bp, url_prefix='/api/orders/admin')
         
         db.create_all()
 

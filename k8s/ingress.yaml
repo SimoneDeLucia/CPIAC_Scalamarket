@@ -1,33 +1,4 @@
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-api-auth
-spec:
-  stripPrefix:
-    prefixes:
-      - /api/auth
 
----
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-api-inventory
-spec:
-  stripPrefix:
-    prefixes:
-      - /api/inventory
-
----
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-api-orders
-spec:
-  stripPrefix:
-    prefixes:
-      - /api/orders
-
----
 # ----------------------------------------------------------------
 # Frontend (Nessun rewrite necessario, ascolta sulla root)
 # ----------------------------------------------------------------
@@ -56,8 +27,6 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: auth-ingress
-  annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: default-strip-api-auth@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
@@ -79,8 +48,6 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: inventory-ingress
-  annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: default-strip-api-inventory@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
@@ -102,8 +69,6 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: order-ingress
-  annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: default-strip-api-orders@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
