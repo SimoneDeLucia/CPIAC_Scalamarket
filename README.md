@@ -51,8 +51,8 @@ minikube ip
 
 Per automatizzare il provisioning in Cloud, l'infrastruttura è gestita tramite **Terraform**. 
 La configurazione iniziale include:
-- **Controllo dei costi (AWS Budget):** Seguendo le best practice, è impostato un budget mensile di 100$. Un allarme avviserà via email qualora le spese superino l'80% di questa soglia.
-- **Application Load Balancer (ALB):** È configurato un ALB con due Subnet pubbliche in Availability Zone separate (requisito obbligatorio di AWS) che indirizza il traffico verso la nostra istanza EC2.
+- **Controllo dei costi (AWS Budget):** Seguendo le best practice, è impostato un budget mensile (100$), con allarme via email qualora le spese superino l'80% di questa soglia.
+- **Application Load Balancer (ALB) con Path-Based Routing:** È configurato un ALB su due Subnet pubbliche in Availability Zone separate. Gestisce l'instradamento inviando le richieste destinate ai path `/admin` e `/inventory` verso l'istanza EC2 **Admin** (nella Subnet 2), e tutto il traffico rimanente verso l'istanza EC2 **Clienti** (nella Subnet 1).
 
 Assicurati di aver configurato le tue credenziali AWS (`aws configure`).
 
@@ -69,7 +69,58 @@ terraform plan
 terraform apply
 ```
 
-Una volta avviata l'infrastruttura EC2, sarà possibile connettersi ai nodi per eseguire il deploy dei container (come spiegato nella guida all'avvio locale).
+Al termine dell'esecuzione, verranno restituiti in output i due IP pubblici delle macchine e il \textbf{DNS Name} dell'Application Load Balancer.
+
+**Come accedere all'applicazione e deployare i container:**
+1. Collegati via SSH ai nodi EC2 utilizzando la chiave \texttt{scalamarket-key} e gli IP pubblici forniti in output.
+2. Esegui il clone selettivo (\textit{sparse-checkout}) per scaricare sul server solo il codice sorgente necessario alla build e al deploy (escludendo documentazione e terraform):
+   ```bash
+   git clone --no-checkout https://github.com/SimoneDeLucia/CPIAC_Scalamarket
+   cd CPIAC_Scalamarket
+   git sparse-checkout init --cone
+   git sparse-checkout set frontend init-scripts microservices k8s
+   git checkout main
+   ```
+3. Assicurandoti di essere all'interno della cartella clonata, esegui le build Docker e il deploy Kubernetes separato per competenza:
+
+   **Sul Nodo Clienti:**
+   ```bash
+   sudo docker build -t cpiac_frontend:v5 -f frontend/Dockerfile frontend/
+   sudo docker build -t cpiac_auth:v5    -f microservices/auth_service/Dockerfile .
+   sudo docker build -t cpiac_order:v5   -f microservices/order_service/Dockerfile .
+
+   # Database (Locale al nodo o condiviso)
+   sudo kubectl apply -f k8s/postgres-pv-pvc.yaml
+   sudo kubectl apply -f k8s/postgres-configmap.yaml
+   sudo kubectl apply -f k8s/postgres-deployment.yaml
+   sudo kubectl apply -f k8s/postgres-service.yaml
+
+   # Servizi Clienti e Ingress
+   sudo kubectl apply -f k8s/frontend-deployment.yaml
+   sudo kubectl apply -f k8s/frontend-service.yaml
+   sudo kubectl apply -f k8s/auth-deployment.yaml
+   sudo kubectl apply -f k8s/auth-service.yaml
+   sudo kubectl apply -f k8s/order-deployment.yaml
+   sudo kubectl apply -f k8s/order-service.yaml
+   sudo kubectl apply -f k8s/ingress.yaml
+   ```
+
+   **Sul Nodo Admin:**
+   ```bash
+   sudo docker build -t cpiac_inventory:v5 -f microservices/inventory_service/Dockerfile .
+
+   # Database (Locale al nodo o condiviso)
+   sudo kubectl apply -f k8s/postgres-pv-pvc.yaml
+   sudo kubectl apply -f k8s/postgres-configmap.yaml
+   sudo kubectl apply -f k8s/postgres-deployment.yaml
+   sudo kubectl apply -f k8s/postgres-service.yaml
+
+   # Servizi Admin e Ingress
+   sudo kubectl apply -f k8s/inventory-deployment.yaml
+   sudo kubectl apply -f k8s/inventory-service.yaml
+   sudo kubectl apply -f k8s/ingress.yaml
+   ```
+4. **Navigazione:** Apri il browser e incollare il DNS Name dell'ALB (es. \texttt{http://scalamarket-alb-...elb.amazonaws.com}). L'ALB smisterà automaticamente il traffico al computer corretto.
 
 ---
 
@@ -87,23 +138,7 @@ Una volta avviata l'infrastruttura EC2, sarà possibile connettersi ai nodi per 
 ![Use Case Diagram](Documentazione/img/UseCaseDiagram.png)
 
 ### Architettura AWS (Terraform)
-```text
-          [ Internet ]
-                |
-          +-----v-----+
-          |    IGW    |  (Internet Gateway)
-          +-----+-----+
-                |
-   +------------v----------------------------+ (VPC: 10.0.0.0/16)
-   |           AWS Application Load Balancer |
-   |  (Subnet Pubblica A) (Subnet Pubblica B)|
-   +------------+----------------------------+
-                |
-        +-------v-------+ 
-        | EC2 K8s Node  | (Singola Istanza in AZ a)
-        | (t3.medium)   |
-        +---------------+
-```
+![AWS Architecture](Documentazione/img/AWSArchitecture.png)
 
 ### Kubernetes: Fase Barebone
 ```text

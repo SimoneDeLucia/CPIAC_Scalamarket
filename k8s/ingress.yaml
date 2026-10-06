@@ -1,66 +1,116 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-api-auth
+spec:
+  stripPrefix:
+    prefixes:
+      - /api/auth
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-api-inventory
+spec:
+  stripPrefix:
+    prefixes:
+      - /api/inventory
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-api-orders
+spec:
+  stripPrefix:
+    prefixes:
+      - /api/orders
+
+---
+# ----------------------------------------------------------------
+# Frontend (Nessun rewrite necessario, ascolta sulla root)
+# ----------------------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: scalamarket-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    nginx.ingress.kubernetes.io/use-regex: "true"
+  name: frontend-ingress
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   rules:
     - http:
         paths:
-
-          # ----------------------------------------------------------------
-          # Frontend: serve il sito statico (HTML client + admin)
-          # ----------------------------------------------------------------
-          - path: /()(.*)
-            pathType: ImplementationSpecific
+          - path: /
+            pathType: Prefix
             backend:
               service:
                 name: frontend-service
                 port:
                   number: 8080
 
-          # ----------------------------------------------------------------
-          # Auth Service (porta 5001)
-          # Rotte Client:  /api/auth/client/register  /api/auth/client/login
-          # Rotte Admin:   /api/auth/admin/register   /api/auth/admin/login
-          #                /api/auth/admin/users       /api/auth/admin/users/<id>
-          # ----------------------------------------------------------------
-          - path: /api/auth(/|$)(.*)
-            pathType: ImplementationSpecific
+---
+# ----------------------------------------------------------------
+# Auth Service
+# ----------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-ingress
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: default-strip-api-auth@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /api/auth
+            pathType: Prefix
             backend:
               service:
                 name: auth-service
                 port:
                   number: 5001
 
-          # ----------------------------------------------------------------
-          # Inventory Service (porta 5002)
-          # Rotte Client:  /api/inventory/client/catalog
-          # Rotte Admin:   /api/inventory/admin/article
-          #                /api/inventory/admin/inventory
-          #                /api/inventory/admin/internal/allocate
-          # ----------------------------------------------------------------
-          - path: /api/inventory(/|$)(.*)
-            pathType: ImplementationSpecific
+---
+# ----------------------------------------------------------------
+# Inventory Service
+# ----------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: inventory-ingress
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: default-strip-api-inventory@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /api/inventory
+            pathType: Prefix
             backend:
               service:
                 name: inventory-service
                 port:
                   number: 5002
 
-          # ----------------------------------------------------------------
-          # Order Service (porta 5003)
-          # Rotte Client:  /api/orders/client/order
-          #                /api/orders/client/order/<id>
-          #                /api/orders/client/order/user/<id>
-          # Rotte Admin:   /api/orders/admin/orders
-          #                /api/orders/admin/logistics
-          # ----------------------------------------------------------------
-          - path: /api/orders(/|$)(.*)
-            pathType: ImplementationSpecific
+---
+# ----------------------------------------------------------------
+# Order Service
+# ----------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: order-ingress
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: default-strip-api-orders@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /api/orders
+            pathType: Prefix
             backend:
               service:
                 name: order-service

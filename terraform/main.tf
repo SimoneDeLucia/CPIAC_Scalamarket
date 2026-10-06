@@ -129,17 +129,33 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"] # Canonical
 }
 
-# EC2 Instances per Kubernetes (K3s) - Singolo Nodo per rientrare nel budget
-resource "aws_instance" "k8s_node" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = var.instance_type
-  subnet_id     = aws_subnet.public_subnet.id
+# EC2 Instance per Applicazioni Clienti (Subnet 1)
+resource "aws_instance" "k8s_node_clients" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.k8s_sg.id]
+  key_name               = "scalamarket-key"
 
   user_data = file("user_data.sh")
 
   tags = {
-    Name = "scalamarket-k8s-node"
+    Name = "scalamarket-node-clients"
+  }
+}
+
+# EC2 Instance per Applicazioni Admin (Subnet 2)
+resource "aws_instance" "k8s_node_admin" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public_subnet_2.id
+  vpc_security_group_ids = [aws_security_group.k8s_sg.id]
+  key_name               = "scalamarket-key"
+
+  user_data = file("user_data.sh")
+
+  tags = {
+    Name = "scalamarket-node-admin"
   }
 }
 
@@ -156,8 +172,13 @@ resource "aws_lb" "k8s_alb" {
   }
 }
 
-resource "aws_lb_target_group" "k8s_tg" {
-  name     = "scalamarket-tg"
+resource "aws_key_pair" "scalamarket_key" {
+  key_name   = "scalamarket-key"
+  public_key = file("~/.ssh/id_rsa.pub")
+}
+
+resource "aws_lb_target_group" "k8s_tg_clients" {
+  name     = "scalamarket-tg-clients"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.main_vpc.id
@@ -167,9 +188,26 @@ resource "aws_lb_target_group" "k8s_tg" {
   }
 }
 
-resource "aws_lb_target_group_attachment" "node_attach" {
-  target_group_arn = aws_lb_target_group.k8s_tg.arn
-  target_id        = aws_instance.k8s_node.id
+resource "aws_lb_target_group" "k8s_tg_admin" {
+  name     = "scalamarket-tg-admin"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.main_vpc.id
+
+  health_check {
+    path = "/"
+  }
+}
+
+resource "aws_lb_target_group_attachment" "clients_attach" {
+  target_group_arn = aws_lb_target_group.k8s_tg_clients.arn
+  target_id        = aws_instance.k8s_node_clients.id
+  port             = 80
+}
+
+resource "aws_lb_target_group_attachment" "admin_attach" {
+  target_group_arn = aws_lb_target_group.k8s_tg_admin.arn
+  target_id        = aws_instance.k8s_node_admin.id
   port             = 80
 }
 
@@ -180,23 +218,39 @@ resource "aws_lb_listener" "front_end" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.k8s_tg.arn
+    target_group_arn = aws_lb_target_group.k8s_tg_clients.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "admin_rule" {
+  listener_arn = aws_lb_listener.front_end.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.k8s_tg_admin.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/admin*", "/inventory*"]
+    }
   }
 }
 
 # Monthly Budget Limit ($100)
 resource "aws_budgets_budget" "monthly_budget" {
-  name              = "scalamarket-monthly-budget"
-  budget_type       = "COST"
-  limit_amount      = "100.0"
-  limit_unit        = "USD"
-  time_unit         = "MONTHLY"
+  name         = "scalamarket-monthly-budget"
+  budget_type  = "COST"
+  limit_amount = "100.0"
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
 
   notification {
     comparison_operator        = "GREATER_THAN"
     threshold                  = 80
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
-    subscriber_email_addresses = ["admin@scalamarket.local"]
+    subscriber_email_addresses = ["simonedl1999@gmail.com"]
   }
 }
