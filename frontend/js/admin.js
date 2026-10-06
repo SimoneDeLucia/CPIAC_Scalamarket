@@ -113,7 +113,8 @@ async function showDashboard() {
 
 // Caricamento Dati Globali
 async function loadGlobalData() {
-    const isBranchManager = state.user.role === 'branch_manager';
+    const isBranchManager = state.user && state.user.role === 'branch_manager';
+    const isAdmin = state.user && state.user.role === 'admin';
     const locId = isBranchManager ? state.user.location_id : null;
     
     let usersMap = {};
