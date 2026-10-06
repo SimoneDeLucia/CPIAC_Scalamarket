@@ -1,7 +1,7 @@
 const API_ENDPOINTS = {
-    auth: 'http://localhost:5001',
-    inventory: 'http://localhost:5002',
-    order: 'http://localhost:5003'
+    auth: '/api/auth',
+    inventory: '/api/inventory',
+    order: '/api/orders'
 };
 
 /**

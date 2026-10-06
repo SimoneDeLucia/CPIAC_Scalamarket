@@ -2,7 +2,9 @@ from app import db
 from models import Logistics, OrderItem
 import requests
 
-INVENTORY_SERVICE_URL = 'http://inventory-service:5002'
+import os
+
+INVENTORY_SERVICE_URL = os.environ.get('INVENTORY_SERVICE_URL', 'http://inventory-service:5002')
 
 def route_order(order):
     """

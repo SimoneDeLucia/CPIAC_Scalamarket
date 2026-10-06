@@ -25,7 +25,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     if(!user || !pass) return errorEl.textContent = 'Inserisci le credenziali.';
     
     try {
-        const res = await AuthAPI.login(user, pass, true);
+        const res = await AuthAPI.login(user, pass, 'client');
         state.user = res.user;
         showDashboard();
     } catch (e) {
@@ -42,7 +42,7 @@ document.getElementById('btn-register').addEventListener('click', async () => {
     if(!user || !pass) return errorEl.textContent = 'Inserisci username e password.';
     
     try {
-        const res = await AuthAPI.register(user, pass, true);
+        const res = await AuthAPI.register(user, pass, 'client');
         state.user = res.user;
         showDashboard();
     } catch (e) {

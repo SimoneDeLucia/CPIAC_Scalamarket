@@ -54,7 +54,10 @@ La configurazione iniziale include:
 - **Controllo dei costi (AWS Budget):** Seguendo le best practice, è impostato un budget mensile (100$), con allarme via email qualora le spese superino l'80% di questa soglia.
 - **Application Load Balancer (ALB) con Path-Based Routing:** È configurato un ALB su due Subnet pubbliche in Availability Zone separate. Gestisce l'instradamento inviando le richieste destinate ai path `/admin` e `/inventory` verso l'istanza EC2 **Admin** (nella Subnet 2), e tutto il traffico rimanente verso l'istanza EC2 **Clienti** (nella Subnet 1).
 
-Assicurati di aver configurato le tue credenziali AWS (`aws configure`).
+Assicurati di aver configurato le tue credenziali AWS (`aws configure`) e di aver generato una chiave SSH locale (necessaria a Terraform per garantirti l'accesso remoto ai server). Se non hai già una chiave, puoi crearla con il seguente comando prima di procedere:
+```bash
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa
+```
 
 ```bash
 cd terraform/
@@ -72,7 +75,9 @@ terraform apply
 Al termine dell'esecuzione, verranno restituiti in output i due IP pubblici delle macchine e il \textbf{DNS Name} dell'Application Load Balancer.
 
 **Come accedere all'applicazione e deployare i container:**
-1. Collegati via SSH ai nodi EC2 utilizzando la chiave \texttt{scalamarket-key} e gli IP pubblici forniti in output.
+1. Collegati via SSH ai nodi EC2 utilizzando i seguenti comandi (gli IP sono quelli restituiti in output da Terraform):
+   - **Nodo Clienti:** `ssh -i ~/.ssh/id_rsa ubuntu@35.152.250.65`
+   - **Nodo Admin:** `ssh -i ~/.ssh/id_rsa ubuntu@18.102.241.139`
 2. Esegui il clone selettivo (\textit{sparse-checkout}) per scaricare sul server solo il codice sorgente necessario alla build e al deploy (escludendo documentazione e terraform):
    ```bash
    git clone --no-checkout https://github.com/SimoneDeLucia/CPIAC_Scalamarket
@@ -84,10 +89,21 @@ Al termine dell'esecuzione, verranno restituiti in output i due IP pubblici dell
 3. Assicurandoti di essere all'interno della cartella clonata, esegui le build Docker e il deploy Kubernetes separato per competenza:
 
    **Sul Nodo Clienti:**
+   Essendo i servizi distribuiti su due nodi indipendenti, il servizio ordini ha bisogno di conoscere l'indirizzo pubblico del bilanciatore per comunicare con l'inventario. (Nota: Se esegui il progetto in ambiente `--LOCAL`, questo step non è necessario in quanto i servizi comunicano tramite il DNS interno `http://inventory-service:5002`).
+   Esegui questo comando sostituendo `URL_ALB` con l'indirizzo del tuo Load Balancer:
+   ```bash
+   sed -i "s|value: \"http://inventory-service:5002\"|value: \"http://scalamarket-alb-171741115.eu-south-1.elb.amazonaws.com/api/inventory\"|g" k8s/order-deployment.yaml
+   ```
+
+   Dopodiché esegui le build:
    ```bash
    sudo docker build -t cpiac_frontend:v5 -f frontend/Dockerfile frontend/
    sudo docker build -t cpiac_auth:v5    -f microservices/auth_service/Dockerfile .
    sudo docker build -t cpiac_order:v5   -f microservices/order_service/Dockerfile .
+
+   # Esporta le immagini da Docker e importale in K3s (Containerd)
+   sudo docker save cpiac_frontend:v5 cpiac_auth:v5 cpiac_order:v5 > clients_images.tar
+   sudo k3s ctr images import clients_images.tar
 
    # Database (Locale al nodo o condiviso)
    sudo kubectl apply -f k8s/postgres-pv-pvc.yaml
@@ -109,6 +125,10 @@ Al termine dell'esecuzione, verranno restituiti in output i due IP pubblici dell
    ```bash
    sudo docker build -t cpiac_inventory:v5 -f microservices/inventory_service/Dockerfile .
 
+   # Esporta le immagini da Docker e importale in K3s (Containerd)
+   sudo docker save cpiac_inventory:v5 > admin_images.tar
+   sudo k3s ctr images import admin_images.tar
+
    # Database (Locale al nodo o condiviso)
    sudo kubectl apply -f k8s/postgres-pv-pvc.yaml
    sudo kubectl apply -f k8s/postgres-configmap.yaml
@@ -120,7 +140,7 @@ Al termine dell'esecuzione, verranno restituiti in output i due IP pubblici dell
    sudo kubectl apply -f k8s/inventory-service.yaml
    sudo kubectl apply -f k8s/ingress.yaml
    ```
-4. **Navigazione:** Apri il browser e incollare il DNS Name dell'ALB (es. \texttt{http://scalamarket-alb-...elb.amazonaws.com}). L'ALB smisterà automaticamente il traffico al computer corretto.
+4. **Navigazione:** Apri il browser e vai all'indirizzo pubblico del Load Balancer: [http://scalamarket-alb-171741115.eu-south-1.elb.amazonaws.com](http://scalamarket-alb-171741115.eu-south-1.elb.amazonaws.com). L'ALB smisterà automaticamente il traffico al nodo corretto basandosi sull'URL richiesto.
 
 ---
 

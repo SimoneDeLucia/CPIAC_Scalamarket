@@ -21,6 +21,8 @@ spec:
           env:
             - name: DATABASE_URI
               value: "postgresql://admin:password@postgres-service:5432/order_db"
+            - name: INVENTORY_SERVICE_URL
+              value: "http://inventory-service:5002"
           resources:
             requests:
               cpu: "150m"

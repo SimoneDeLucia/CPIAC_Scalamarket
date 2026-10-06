@@ -37,7 +37,8 @@ Durante la procedura guidata di generazione della coppia di chiavi di accesso (\
 
 I passi per eseguire lo script sono i seguenti:
 \begin{enumerate}
-    \item \textbf{Configurazione Credenziali:} Eseguire \texttt{aws configure} per configurare la CLI con le \textit{Access Keys} ottenute.
+    \item \textbf{Generazione Chiave SSH:} Terraform richiede l'esistenza di una chiave SSH locale per l'autenticazione remota sui server. Se non si possiede già una chiave, generarne una eseguendo da terminale il comando: \texttt{ssh-keygen -t rsa -b 4096 -f \textasciitilde{}/.ssh/id\_rsa}.
+    \item \textbf{Configurazione Credenziali AWS:} Eseguire \texttt{aws configure} per configurare la CLI con le \textit{Access Keys} ottenute.
     \begin{figure}[H]
         \centering
         \includegraphics[width=0.7\textwidth]{img/awsConfigure.png}
@@ -64,7 +65,11 @@ I passi per eseguire lo script sono i seguenti:
 Al termine dell'esecuzione di Terraform, verranno stampati a video il DNS name dell'ALB e gli IP Pubblici delle due istanze EC2. 
 L'infrastruttura a questo punto è in esecuzione, ma le applicazioni devono ancora essere deployate. I passaggi sono:
 \begin{itemize}
-    \item \textbf{Accesso SSH:} Collegarsi in SSH alle macchine tramite la chiave definita (es. \texttt{scalamarket-key}).
+    \item \textbf{Accesso SSH:} Collegarsi in SSH alle macchine tramite i seguenti comandi (basati sull'output di Terraform):
+    \begin{itemize}
+        \item \textbf{Nodo Clienti:} \texttt{ssh -i \textasciitilde{}/.ssh/id\_rsa ubuntu@35.152.250.65}
+        \item \textbf{Nodo Admin:} \texttt{ssh -i \textasciitilde{}/.ssh/id\_rsa ubuntu@18.102.241.139}
+    \end{itemize}
     \item \textbf{Clone Selettivo (Sparse-Checkout):} Per evitare di scaricare file inutili ai fini del deploy (come questa documentazione o i file Terraform), utilizzare i seguenti comandi su entrambi i nodi:
     \begin{verbatim}
     git clone --no-checkout <TUO_URL_GIT>
@@ -73,11 +78,16 @@ L'infrastruttura a questo punto è in esecuzione, ma le applicazioni devono anco
     git sparse-checkout set frontend init-scripts microservices k8s
     git checkout main
     \end{verbatim}
-    \item \textbf{Deploy K8s - Nodo Clienti:} (Assicurarsi di essere nella cartella \texttt{CPIAC\_Scalamarket})
+    \item \textbf{Deploy K8s - Nodo Clienti:} (Assicurarsi di essere nella cartella \texttt{CPIAC\_Scalamarket}). Poiché su AWS i servizi sono distribuiti su due nodi indipendenti, il servizio ordini ha bisogno di conoscere l'indirizzo pubblico del bilanciatore per comunicare con l'inventario (mentre in un ambiente \texttt{--LOCAL} comunicherebbero tramite DNS interno). Sostituendo \texttt{URL\_ALB} con l'indirizzo del tuo Load Balancer, esegui:
     \begin{verbatim}
+    sed -i "s|value: \"http://inventory-service:5002\"|value: \"http://scalamarket-alb-171741115.eu-south-1.elb.amazonaws.com/api/inventory\"|g" k8s/order-deployment.yaml
+    
     sudo docker build -t cpiac_frontend:v5 -f frontend/Dockerfile frontend/
     sudo docker build -t cpiac_auth:v5    -f microservices/auth_service/Dockerfile .
     sudo docker build -t cpiac_order:v5   -f microservices/order_service/Dockerfile .
+
+    sudo docker save cpiac_frontend:v5 cpiac_auth:v5 cpiac_order:v5 > clients_images.tar
+    sudo k3s ctr images import clients_images.tar
 
     sudo kubectl apply -f k8s/postgres-pv-pvc.yaml
     sudo kubectl apply -f k8s/postgres-configmap.yaml
@@ -97,6 +107,9 @@ L'infrastruttura a questo punto è in esecuzione, ma le applicazioni devono anco
     \begin{verbatim}
     sudo docker build -t cpiac_inventory:v5 -f microservices/inventory_service/Dockerfile .
 
+    sudo docker save cpiac_inventory:v5 > admin_images.tar
+    sudo k3s ctr images import admin_images.tar
+
     sudo kubectl apply -f k8s/postgres-pv-pvc.yaml
     sudo kubectl apply -f k8s/postgres-configmap.yaml
     sudo kubectl apply -f k8s/postgres-deployment.yaml
@@ -106,8 +119,15 @@ L'infrastruttura a questo punto è in esecuzione, ma le applicazioni devono anco
     sudo kubectl apply -f k8s/inventory-service.yaml
     sudo kubectl apply -f k8s/ingress.yaml
     \end{verbatim}
-    \item \textbf{Navigazione:} Accedere dal browser non tramite gli IP delle macchine, ma tramite l'URL fornito dall'Application Load Balancer (DNS Name). L'ALB smisterà automaticamente il traffico basandosi sul \textit{path} dell'URL.
+    \item \textbf{Navigazione:} Accedere dal browser non tramite gli IP delle macchine, ma tramite l'URL fornito dall'Application Load Balancer: \url{http://scalamarket-alb-171741115.eu-south-1.elb.amazonaws.com}. L'ALB smisterà automaticamente il traffico basandosi sul \textit{path} dell'URL.
 \end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/platform_deployed.png}
+    \caption{Architettura deployata e accessibile tramite Application Load Balancer AWS}
+    \label{fig:platform_deployed}
+\end{figure}
 \end{mysection}
 
 \begin{mysection}{Deployment tramite AWS Management Console (GUI)}

@@ -44,7 +44,55 @@ Il lato client e il pannello di gestione amministrativa sono stati realizzati me
     \label{fig:use_case_diagram}
 \end{figure}
 
-\textbf{TODO: Inserire qui degli screenshot rappresentativi delle schermate del sito web (es. Dashboard Utente, Pannello di Controllo Admin).}
+\begin{mysubsection}{Interfaccia Utente (UI/UX)}
+L'interfaccia utente di Scalamarket separa l'esperienza dell'utente finale (il Cliente) da quella degli operatori di back-office (gli Amministratori/Gestori Filiera), mantenendo un'architettura frontend unificata. Il design adotta uno stile moderno, caratterizzato da temi scuri (Dark Mode), palette di colori vivaci e layout responsivo.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{img/client_login.png}
+    \caption{Schermata di Accesso e Registrazione (Area Clienti)}
+    \label{fig:client_login}
+\end{figure}
+
+La dashboard cliente mostra il catalogo degli articoli, con disponibilità residua globale calcolata dinamicamente interrogando il servizio inventario. Il carrello impedisce l'aggiunta di quantità superiori alla disponibilità.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/client_catalog.png}
+    \caption{Dashboard Cliente: Catalogo Prodotti e Carrello}
+    \label{fig:client_catalog}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/successful_order_client.png}
+    \caption{Conferma dell'ordine andato a buon fine (Area Cliente)}
+    \label{fig:successful_order_client}
+\end{figure}
+
+Accedendo alla dashboard di amministrazione, gli operatori e i gestori di filiera hanno a disposizione sezioni specifiche per l'aggiunta di nuovi articoli, la gestione logistica (aggiornamento dei mezzi di trasporto) e l'inventario globale consolidato.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/admin_dashboard.png}
+    \caption{Dashboard Amministratore (Inventario, Logistica e Analytics)}
+    \label{fig:admin_dashboard}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/local_admin_dashboard.png}
+    \caption{Dettaglio della gestione locale della singola filiale (Gestore Filiera)}
+    \label{fig:local_admin_dashboard}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/successful_order_admin.png}
+    \caption{Aggiornamento in tempo reale delle risorse a seguito di un ordine}
+    \label{fig:successful_order_admin}
+\end{figure}
+\end{mysubsection}
 \end{mysection}
 
 \end{mychapter}
@@ -64,7 +112,7 @@ I componenti dell'infrastruttura Barebone sono i seguenti:
     \item \textbf{postgres}: Deployment con 1 replica, con storage persistente garantito da un \texttt{PersistentVolume} (PV) e un \texttt{PersistentVolumeClaim} (PVC). Il Service è di tipo \texttt{ClusterIP} sulla porta 5432.
 \end{itemize}
 
-\textbf{TODO: Inserire qui uno screenshot dell'output di \texttt{kubectl get pods} con tutti i pod in stato Running (barebone).}
+\textbf{TODO: Inserire qui uno screenshot dell'output di \texttt{kubectl get pods} (o similari) per la verifica del deployment in ambiente locale (es. Minikube/Docker Desktop).}
 
 I limiti principali di questa configurazione sono:
 \begin{itemize}

@@ -233,7 +233,7 @@ resource "aws_lb_listener_rule" "admin_rule" {
 
   condition {
     path_pattern {
-      values = ["/admin*", "/inventory*"]
+      values = ["/api/inventory*"]
     }
   }
 }
