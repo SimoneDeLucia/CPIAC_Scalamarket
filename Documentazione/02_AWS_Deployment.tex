@@ -2,7 +2,7 @@
 
 \begin{mysection}{Deployment tramite Infrastructure-as-Code (Terraform)}
 Al fine di automatizzare e rendere riproducibile l'infrastruttura Cloud, è stato creato uno script Terraform per effettuare il provisioning delle risorse su Amazon Web Services (AWS).
-Questa metodologia, nota come \textit{Infrastructure-as-Code} (IaC), garantisce che la configurazione del cloud sia scritta in file dichiarativi, riducendo l'errore umano.
+Questa metodologia, nota come \textit{Infrastructure-as-Code} (IaC), garantisce che la configurazione del cloud sia scritta in file dichiarativi.
 
 I file Terraform implementati (\texttt{main.tf}, \texttt{variables.tf}, \texttt{outputs.tf}) descrivono la seguente architettura:
 \begin{itemize}
@@ -21,6 +21,9 @@ I file Terraform implementati (\texttt{main.tf}, \texttt{variables.tf}, \texttt{
     \label{fig:aws_arch}
 \end{figure}
 
+\textbf{Manifest Ingress per AWS (\texttt{ingress.yaml}):}\\
+A differenza del manifest locale (\texttt{ingress-local.yaml}) che si affida all'Ingress Controller NGINX, il file per l'infrastruttura AWS adotta \texttt{traefik} come \textit{ingressClassName}, in quanto Kubernetes K3s ne include il supporto predefinito risultando ideale e "leggero" per l'integrazione con l'Application Load Balancer sovrastante. Il manifest AWS differisce in modo sostanziale dal locale anche perché frammentato: separa in definizioni YAML del tutto distinte l'Ingress per la rotta inventario, auth, frontend e orders. Questo asseconda l'architettura a nodi separati implementata su AWS, poiché il cluster non è unificato: delegando l'instradamento di più alto livello all'ALB di Amazon Cloud, si ottiene un instradamento corretto senza la necessità di DNS interni complessi tra i due nodi.
+
 \textbf{Load Balancing e Path-Based Routing:}\\
 Al fine di separare le competenze mantenendo un singolo punto d'accesso, l'Application Load Balancer (ALB) è stato configurato per effettuare un \textit{Path-Based Routing}. Il traffico in entrata viene analizzato dall'ALB: le richieste dirette ai path \texttt{/admin*} e \texttt{/inventory*} vengono inoltrate automaticamente al \textit{Target Group} del nodo Admin (situato nella Subnet 2), mentre tutte le restanti richieste (di default) sono servite dal \textit{Target Group} del nodo Clienti (nella Subnet 1).
 
@@ -37,22 +40,22 @@ Durante la procedura guidata di generazione della coppia di chiavi di accesso (\
 
 I passi per eseguire lo script sono i seguenti:
 \begin{enumerate}
-    \item \textbf{Generazione Chiave SSH:} Terraform richiede l'esistenza di una chiave SSH locale per l'autenticazione remota sui server. Se non si possiede già una chiave, generarne una eseguendo da terminale il comando: \texttt{ssh-keygen -t rsa -b 4096 -f \textasciitilde{}/.ssh/id\_rsa}.
-    \item \textbf{Configurazione Credenziali AWS:} Eseguire \texttt{aws configure} per configurare la CLI con le \textit{Access Keys} ottenute.
+    \item \textbf{Generazione Chiave SSH:} Terraform richiede l'esistenza di una chiave SSH locale per l'autenticazione remota sui server.
+    \item \textbf{Configurazione Credenziali AWS:} È necessario configurare la CLI con le \textit{Access Keys} ottenute, operazione propedeutica all'esecuzione dello script.
     \begin{figure}[H]
         \centering
         \includegraphics[width=0.7\textwidth]{img/awsConfigure.png}
         \caption{Configurazione tramite AWS CLI}
         \label{fig:aws_configure}
     \end{figure}
-    \item \textbf{Inizializzazione:} Eseguire \texttt{terraform init}.
+    \item \textbf{Inizializzazione:} L'ambiente Terraform viene inizializzato scaricando i provider necessari per l'infrastruttura.
     \begin{figure}[H]
         \centering
         \includegraphics[width=0.7\textwidth]{img/terraformInit.png}
         \caption{Inizializzazione di Terraform}
         \label{fig:terraform_init}
     \end{figure}
-    \item \textbf{Verifica e Applicazione:} Eseguire \texttt{terraform plan} e infine \texttt{terraform apply}.
+    \item \textbf{Verifica e Applicazione:} Si esegue prima una verifica dei piani di esecuzione e infine si applicano le modifiche per effettuare il provisioning effettivo delle risorse su AWS.
     \begin{figure}[H]
         \centering
         \includegraphics[width=0.7\textwidth]{img/TerraformApply.png}
@@ -63,46 +66,10 @@ I passi per eseguire lo script sono i seguenti:
 
 \textbf{Accesso Remoto e Deploy Applicativo:}\\
 Al termine dell'esecuzione di Terraform, verranno stampati a video il DNS name dell'ALB e gli IP Pubblici delle due istanze EC2. 
-L'infrastruttura a questo punto è in esecuzione, ma le applicazioni devono ancora essere deployate. I passaggi sono:
+L'infrastruttura a questo punto è in esecuzione ma vanno deployate le applicazioni. 
 \begin{itemize}
-    \item \textbf{Accesso SSH:} Collegarsi in SSH alle macchine tramite i seguenti comandi (basati sull'output di Terraform):
-    \begin{itemize}
-        \item \textbf{Nodo Clienti:} \texttt{ssh -i \textasciitilde{}/.ssh/id\_rsa ubuntu@35.152.250.65}
-        \item \textbf{Nodo Admin:} \texttt{ssh -i \textasciitilde{}/.ssh/id\_rsa ubuntu@18.102.241.139}
-    \end{itemize}
-    \item \textbf{Clone Selettivo (Sparse-Checkout):} Per evitare di scaricare file inutili ai fini del deploy (come questa documentazione o i file Terraform), utilizzare i seguenti comandi su entrambi i nodi:
-    \begin{verbatim}
-    git clone --no-checkout <TUO_URL_GIT>
-    cd CPIAC_Scalamarket
-    git sparse-checkout init --cone
-    git sparse-checkout set frontend init-scripts microservices k8s
-    git checkout main
-    \end{verbatim}
-    \item \textbf{Deploy K8s - Nodo Clienti:} (Assicurarsi di essere nella cartella \texttt{CPIAC\_Scalamarket}). Poiché su AWS i servizi sono distribuiti su due nodi indipendenti, il servizio ordini ha bisogno di conoscere l'indirizzo pubblico del bilanciatore per comunicare con l'inventario (mentre in un ambiente \texttt{--LOCAL} comunicherebbero tramite DNS interno). Sostituendo \texttt{URL\_ALB} con l'indirizzo del tuo Load Balancer, esegui:
-    \begin{verbatim}
-    sed -i "s|value: \"http://inventory-service:5002\"|value: \"http://scalamarket-alb-171741115.eu-south-1.elb.amazonaws.com/api/inventory\"|g" k8s/order-deployment.yaml
-    
-    sudo docker build -t cpiac_frontend:v5 -f frontend/Dockerfile frontend/
-    sudo docker build -t cpiac_auth:v5    -f microservices/auth_service/Dockerfile .
-    sudo docker build -t cpiac_order:v5   -f microservices/order_service/Dockerfile .
-
-    sudo docker save cpiac_frontend:v5 cpiac_auth:v5 cpiac_order:v5 > clients_images.tar
-    sudo k3s ctr images import clients_images.tar
-
-    sudo kubectl apply -f k8s/postgres-pv-pvc.yaml
-    sudo kubectl apply -f k8s/postgres-configmap.yaml
-    sudo kubectl apply -f k8s/postgres-deployment.yaml
-    sudo kubectl apply -f k8s/postgres-service.yaml
-
-    sudo kubectl apply -f k8s/frontend-deployment.yaml
-    sudo kubectl apply -f k8s/frontend-service.yaml
-    sudo kubectl apply -f k8s/auth-deployment.yaml
-    sudo kubectl apply -f k8s/auth-service.yaml
-    sudo kubectl apply -f k8s/order-deployment.yaml
-    sudo kubectl apply -f k8s/order-service.yaml
-    sudo kubectl apply -f k8s/ingress.yaml
-    \end{verbatim}
-
+    \item \textbf{Accesso SSH e Download Sorgenti:} Effettuato l'accesso alle macchine tramite le chiavi SSH, si esegue un clone parziale del repository scaricando solamente le cartelle necessarie (\texttt{frontend}, \texttt{microservices} e \texttt{k8s}).
+    \item \textbf{Deploy K8s - Nodo Clienti:} Poiché i servizi sono distribuiti su nodi indipendenti, il servizio ordini viene dinamicamente riconfigurato per puntare all'indirizzo pubblico del Load Balancer. Vengono compilate le immagini Docker per i servizi di competenza del nodo (Frontend, Auth e Order), importate in K3s e vengono applicati i manifest per il database e per l'Ingress.
     \begin{figure}[H]
         \centering
         \includegraphics[width=\textwidth]{img/kubectl_client.png}
@@ -110,30 +77,14 @@ L'infrastruttura a questo punto è in esecuzione, ma le applicazioni devono anco
         \label{fig:kubectl_client}
     \end{figure}
     
-    \item \textbf{Deploy K8s - Nodo Admin:}
-    \begin{verbatim}
-    sudo docker build -t cpiac_inventory:v5 -f microservices/inventory_service/Dockerfile .
-
-    sudo docker save cpiac_inventory:v5 > admin_images.tar
-    sudo k3s ctr images import admin_images.tar
-
-    sudo kubectl apply -f k8s/postgres-pv-pvc.yaml
-    sudo kubectl apply -f k8s/postgres-configmap.yaml
-    sudo kubectl apply -f k8s/postgres-deployment.yaml
-    sudo kubectl apply -f k8s/postgres-service.yaml
-
-    sudo kubectl apply -f k8s/inventory-deployment.yaml
-    sudo kubectl apply -f k8s/inventory-service.yaml
-    sudo kubectl apply -f k8s/ingress.yaml
-    \end{verbatim}
-
+    \item \textbf{Deploy K8s - Nodo Admin:} Sul nodo Admin si compila l'immagine per il servizio \texttt{inventory}, la si importa nell'ambiente K3s e si effettua il deploy delle risorse Kubernetes relative al database, all'inventario e all'Ingress dedicato.
     \begin{figure}[H]
         \centering
         \includegraphics[width=\textwidth]{img/kubectl_admin.png}
         \caption{Verifica dello stato dei Pod sul Nodo Admin AWS}
         \label{fig:kubectl_admin}
     \end{figure}
-    \item \textbf{Navigazione:} Accedere dal browser non tramite gli IP delle macchine, ma tramite l'URL fornito dall'Application Load Balancer: \url{http://scalamarket-alb-171741115.eu-south-1.elb.amazonaws.com}. L'ALB smisterà automaticamente il traffico basandosi sul \textit{path} dell'URL.
+    \item \textbf{Navigazione:} Terminata la fase di deploy su entrambi i nodi, l'accesso alla piattaforma avviene dal browser tramite l'URL fornito dall'Application Load Balancer. L'ALB si occuperà di smistare automaticamente il traffico basandosi sul \textit{path} dell'URL.
 \end{itemize}
 
 \begin{figure}[H]
@@ -142,22 +93,6 @@ L'infrastruttura a questo punto è in esecuzione, ma le applicazioni devono anco
     \caption{Architettura deployata e accessibile tramite Application Load Balancer AWS}
     \label{fig:platform_deployed}
 \end{figure}
-\end{mysection}
-
-\begin{mysection}{Deployment tramite AWS Management Console (GUI)}
-In alternativa, è possibile creare manualmente la stessa infrastruttura descritta al paragrafo precedente direttamente tramite il portale web di AWS. Questo approccio è utile a scopo esplorativo e didattico.
-
-Di seguito i passaggi principali:
-\begin{enumerate}
-    \item \textbf{Creazione VPC:} Dalla sezione VPC, utilizzare il wizard "VPC and more" per creare la rete, specificando il CIDR block e includendo un Internet Gateway.
-    \item \textbf{Configurazione Subnet e Route Table:} Separare logicamente le reti pubbliche e private.
-    \item \textbf{Lancio Istanze EC2:} Dalla dashboard EC2, cliccare su "Launch Instance". Selezionare un'AMI Ubuntu, scegliere una classe di istanza (es. \texttt{t3.medium}), associare una coppia di chiavi SSH e collocare l'istanza nella subnet corretta associandole un Security Group che apra la porta 22 (SSH) e la 80 (HTTP).
-    \item \textbf{Creazione Load Balancer:} Dalla sezione "Load Balancing", creare un ALB, associarlo alle subnet pubbliche e creare un \textit{Target Group} che punti alle istanze EC2 su cui gira Kubernetes.
-    \item \textbf{Impostazione AWS Budget:} Dalla sezione "Billing", accedere a "Budgets" e creare un budget di costo mensile pari a 100\$, specificando l'indirizzo email per gli alert al superamento dell'80\%.
-\end{enumerate}
-
-
-
 \end{mysection}
 
 \end{mychapter}

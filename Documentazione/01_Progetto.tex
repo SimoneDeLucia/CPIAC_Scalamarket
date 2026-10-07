@@ -1,18 +1,19 @@
 \begin{mychapter}{Presentazione del Progetto}
 
 \begin{mysection}{Descrizione Generale}
-Scalamarket è una moderna piattaforma e-commerce basata su un'architettura a microservizi, progettata per garantire elevata scalabilità, affidabilità e flessibilità. Il sistema gestisce l'intero ciclo di vita dell'acquisto online: dalla registrazione degli utenti, alla consultazione del catalogo, fino all'elaborazione degli ordini e alla gestione logistica delle spedizioni. L'intera infrastruttura è stata ideata per essere distribuita in modo efficiente tramite Kubernetes ed eventualmente ospitata in ambiente cloud AWS, fornendo un backend solido, scalabile e supportato da API RESTful.
+Scalamarket è una moderna piattaforma e-commerce basata su un'architettura a microservizi, progettata per garantire elevata scalabilità, affidabilità e flessibilità. Il sistema gestisce l'intero ciclo di vita dell'acquisto online: dalla registrazione degli utenti, alla consultazione del catalogo, fino all'elaborazione degli ordini e alla gestione logistica delle spedizioni. L'intera infrastruttura è stata ideata per essere distribuita in modo efficiente tramite Kubernetes ed eventualmente ospitata in ambiente cloud AWS, fornendo un backend solido, scalabile e supportato da API RESTful. 
+
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{img/ComponentDiagram.png}
+    \includegraphics[width=\textwidth,height=0.45\textheight,keepaspectratio]{img/ComponentDiagram.png}
     \caption{Diagramma dei Componenti UML}
     \label{fig:component_diagram}
 \end{figure}
 \end{mysection}
 
 \begin{mysection}{Requisiti dell'Applicativo}
-L'applicativo è stato sviluppato per soddisfare una serie di requisiti architetturali, funzionali e di business specifici, documentati nei requisiti di progetto:
+L'applicativo è stato sviluppato per soddisfare i seguenti requisiti architetturali, funzionali e di business 
 
 \begin{itemize}
     \item \textbf{Autenticazione e Autorizzazione (Auth Service):} Il sistema deve permettere la registrazione e il login sicuri sia per i clienti (Client) che per gli amministratori (Admin). L'amministratore deve avere i privilegi per gestire le utenze.
@@ -21,16 +22,21 @@ L'applicativo è stato sviluppato per soddisfare una serie di requisiti architet
     \item \textbf{Architettura a Microservizi e Dati Isolati:} Per massimizzare la modularità, ogni servizio deve possedere una propria logica di business e interfacciarsi con il proprio database PostgreSQL indipendente, disaccoppiando così i domini applicativi.
 \end{itemize}
 
+È importante specificare che l'applicativo è da considerarsi un Prototipo (Proof of Concept) atto a dimostrare le dinamiche di scalabilità, distribuzione e interazione tra microservizi, e non è pensato per un utilizzo commerciale in produzione. Alcune interfacce, così come la maggior parte delle funzionalità di sicurezza sono da considerarsi basilari
+
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{img/SequenceDiagram.png}
+    \includegraphics[width=\textwidth,height=0.45\textheight,keepaspectratio]{img/SequenceDiagram.png}
     \caption{Diagramma di Sequenza}
     \label{fig:sequence_diagram}
 \end{figure}
+
 \end{mysection}
 
-\begin{mysection}{Il Sito Web implementato con Flask}
-Il lato client e il pannello di gestione amministrativa sono stati realizzati mediante un'interfaccia web responsive integrata con il backend sviluppato in Flask. L'applicazione Flask espone e gestisce tutti gli endpoint necessari, mentre la UI comunica costantemente con questi servizi tramite chiamate asincrone.
+\begin{mysection}{Il Sito Web}
+Per l'implementazione di Scalamarket si è scelto un framework Flask. Il lato client e il pannello di gestione amministrativa sono stati realizzati mediante un'interfaccia web responsive integrata con il backend. L'applicazione espone e gestisce tutti gli endpoint necessari, mentre la UI comunica costantemente con questi servizi tramite chiamate asincrone.
+
+Il sito implementa tre diverse interfacce: \textbf{Cliente}, \textbf{Gestore Filiale} ed \textbf{Amministratore Globale}.
 
 \begin{itemize}
     \item \textbf{Interfaccia Cliente:} L'utente può scorrere l'intero catalogo, visualizzare i prezzi e le disponibilità massime, aggiungere elementi al carrello e, una volta inviato l'ordine, monitorarne lo stato e i dettagli dei prodotti tramite un'apposita cronologia.
@@ -38,82 +44,65 @@ Il lato client e il pannello di gestione amministrativa sono stati realizzati me
     \item \textbf{Interfaccia Gestore Filiale:} Il gestore ha una visione limitata esclusivamente alle giacenze e ai veicoli della propria sede, con i poteri esclusivi di poter aggiungere o rimuovere articoli dal catalogo, e aggiornare le scorte e i mezzi assegnati alla filiale.
 \end{itemize}
 
+\textit{Nota: per un'analisi dettagliata e visiva di come è strutturata l'interfaccia utente (UI) nelle sue varie schermate, si rimanda al quinto capitolo, "Interfaccia Utente", del documento.}
+
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{img/UseCaseDiagram.png}
+    \includegraphics[width=\textwidth,height=0.45\textheight,keepaspectratio]{img/UseCaseDiagram.png}
     \caption{Diagramma dei Casi d'Uso}
     \label{fig:use_case_diagram}
 \end{figure}
 
-\begin{mysubsection}{Interfaccia Utente (UI/UX)}
-L'interfaccia utente di Scalamarket separa l'esperienza dell'utente finale (il Cliente) da quella degli operatori di back-office (gli Amministratori/Gestori Filiera), mantenendo un'architettura frontend unificata. Il design adotta uno stile moderno, caratterizzato da temi scuri (Dark Mode), palette di colori vivaci e layout responsivo.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{img/client_login.png}
-    \caption{Schermata di Accesso e Registrazione (Area Clienti)}
-    \label{fig:client_login}
-\end{figure}
-
-La dashboard cliente mostra il catalogo degli articoli, con disponibilità residua globale calcolata dinamicamente interrogando il servizio inventario. Il carrello impedisce l'aggiunta di quantità superiori alla disponibilità.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{img/client_catalog.png}
-    \caption{Dashboard Cliente: Catalogo Prodotti e Carrello}
-    \label{fig:client_catalog}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{img/successful_order_client.png}
-    \caption{Conferma dell'ordine andato a buon fine (Area Cliente)}
-    \label{fig:successful_order_client}
-\end{figure}
-
-Accedendo alla dashboard di amministrazione, gli operatori e i gestori di filiera hanno a disposizione sezioni specifiche per l'aggiunta di nuovi articoli, la gestione logistica (aggiornamento dei mezzi di trasporto) e l'inventario globale consolidato.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{img/admin_dashboard.png}
-    \caption{Dashboard Amministratore (Inventario, Logistica e Analytics)}
-    \label{fig:admin_dashboard}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{img/local_admin_dashboard.png}
-    \caption{Dettaglio della gestione locale della singola filiale (Gestore Filiera)}
-    \label{fig:local_admin_dashboard}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{img/successful_order_admin.png}
-    \caption{Aggiornamento in tempo reale delle risorse a seguito di un ordine}
-    \label{fig:successful_order_admin}
-\end{figure}
-\end{mysubsection}
 \end{mysection}
 
 \end{mychapter}
 
 \begin{mychapter}{Orchestrazione Kubernetes}
 
-\begin{mysection}{Infrastruttura Barebone}
-La prima configurazione Kubernetes realizzata è definita \textbf{Barebone}: è operativa e funzionante, ma priva di qualsiasi meccanismo di ridondanza. Ogni componente dell'applicazione viene eseguito come un singolo Pod, il che configura un \textit{Single Point of Failure} per ogni livello dello stack.
+\begin{mysection}{Infrastruttura del Cluster}
+L'infrastruttura Kubernetes poggia su componenti isolati al fine di scalare singolarmente in base alle esigenze e prevenire disservizi totali (\textit{Single Point of Failure}). 
 
-I componenti dell'infrastruttura Barebone sono i seguenti:
-
+I componenti base dell'applicativo sono i seguenti:
 \begin{itemize}
-    \item \textbf{frontend} (nginx): Deployment con 1 replica, esposto all'esterno tramite un Service di tipo \texttt{LoadBalancer} sulla porta 8080.
-    \item \textbf{auth-service} (Flask): Deployment con 1 replica, raggiungibile internamente tramite Service \texttt{ClusterIP} sulla porta 5001.
-    \item \textbf{inventory-service} (Flask): Deployment con 1 replica, raggiungibile internamente tramite Service \texttt{ClusterIP} sulla porta 5002.
-    \item \textbf{order-service} (Flask): Deployment con 1 replica, raggiungibile internamente tramite Service \texttt{ClusterIP} sulla porta 5003.
-    \item \textbf{postgres}: Deployment con 1 replica, con storage persistente garantito da un \texttt{PersistentVolume} (PV) e un \texttt{PersistentVolumeClaim} (PVC). Il Service è di tipo \texttt{ClusterIP} sulla porta 5432.
+    \item \textbf{frontend} (nginx): Gestisce la GUI per clienti e amministratori, esposto sulla porta 8080.
+    \item \textbf{auth-service} (Flask): Gestisce autenticazione, registrazione e ruoli.
+    \item \textbf{inventory-service} (Flask): Gestisce il catalogo, articoli e giacenze.
+    \item \textbf{order-service} (Flask): Gestisce gli ordini, lo storico e la logistica.
+    \item \textbf{postgres}: Database centrale con storage persistente garantito da un \texttt{PersistentVolume} (PV) e un \texttt{PersistentVolumeClaim} (PVC), logicamente frammentato in 3 database separati.
 \end{itemize}
 
-Di seguito viene riportato l'output dell'ambiente locale in esecuzione, che conferma lo stato \texttt{Running} di tutti i pod (in questo caso scalati a 1 replica ciascuno per ottimizzazione delle risorse di elaborazione) e la corretta visualizzazione della piattaforma dal browser locale.
+\subsubsection*{Ridondanza e Scalabilità}
+I servizi stateless (Frontend e Logica di Business) sono stati configurati con repliche multiple, distribuite automaticamente dal \texttt{Service} \texttt{ClusterIP} che funge da load-balancer interno:
+\begin{itemize}
+    \item \textbf{Frontend (nginx):} 2 repliche per garantire alta disponibilità durante aggiornamenti o guasti di un Pod.
+    \item \textbf{Logica di Business (auth, inventory, order):} 3 repliche ciascuno, in quanto soggetti a maggior stress e richieste concorrenti (es. elaborazione parallela ordini o scritture simultanee inventario).
+    \item \textbf{Database (postgres):} Rimane a 1 replica. In ambiente nativo relazionale, la coerenza dei dati orizzontale richiede approcci dedicati; mantenere 1 replica ne previene il partizionamento anomalo.
+\end{itemize}
+
+Tutti i container Flask sono inoltre dotati di \texttt{resources} (requests e limits) per evitare che un consumo anomalo da parte di un Pod degradi le prestazioni degli altri (\textit{noisy neighbor}).
+
+\subsubsection*{Kubernetes Ingress Controller}
+L'accesso esterno e il routing dei servizi avvengono tramite un \textbf{Kubernetes Ingress Controller} (basato su NGINX) che agisce da \textit{reverse proxy} HTTP a livello di cluster. Attraverso un unico indirizzo esposto al pubblico, elimina la necessità di port-forward multipli. Le rotte principali implementate sono:
+\begin{itemize}
+    \item \texttt{/} $\rightarrow$ \texttt{frontend-service:8080}
+    \item \texttt{/api/auth/} $\rightarrow$ \texttt{auth-service:5001}
+    \item \texttt{/api/inventory/} $\rightarrow$ \texttt{inventory-service:5002}
+    \item \texttt{/api/orders/} $\rightarrow$ \texttt{order-service:5003}
+\end{itemize}
+
+\textit{Nota: Si rimanda al quarto capitolo per un analisi più dettagliata delle rotte implementate e quali richieste vengono gestite da ciascuna di esse.}
+
+\subsubsection*{Analisi dei Manifest Kubernetes}
+L'architettura descritta è governata da una serie di manifest Kubernetes (file YAML) che dichiarano in maniera esplicita lo stato desiderato dell'infrastruttura.
+
+\begin{itemize}
+    \item \textbf{Ingress Locale (\texttt{ingress-local.yaml}):} Definisce le regole di instradamento specificando la \textit{ingressClassName} \texttt{nginx}. La risorsa si suddivide in blocchi \texttt{rules} che incanalano le chiamate ai backend giusti.
+    \item \textbf{Deployment di un Microservizio (es. \texttt{order-deployment.yaml}):} Illustra le \textit{best-practice} del deployment stateless in Kubernetes. Specifica \texttt{replicas: 3}, \texttt{imagePullPolicy} e l'iniezione delle \texttt{env} necessarie (come la stringa di connessione DB). Impone infine limiti rigidi sulle \texttt{resources.requests} e \texttt{resources.limits} di CPU/RAM.
+    \item \textbf{Deployment del Database (\texttt{postgres-deployment.yaml}):} A differenza dei precedenti, usa i \textit{Volumes}. Integra \texttt{volumeMounts} per i dati nel path \texttt{/var/lib/postgresql/data} collegati a un PVC. Inietta inoltre un \texttt{ConfigMap} nel path \texttt{/docker-entrypoint-initdb.d} per creare i database automaticamente all'avvio.
+\end{itemize}
+
+Di seguito viene riportato l'output dell'ambiente locale in esecuzione, che conferma lo stato \texttt{Running} di tutti i pod e la corretta visualizzazione della piattaforma dal browser locale.
+\end{mysection}
 
 \begin{figure}[H]
     \centering
@@ -129,108 +118,8 @@ Di seguito viene riportato l'output dell'ambiente locale in esecuzione, che conf
     \label{fig:local_deployment}
 \end{figure}
 
-I limiti principali di questa configurazione sono:
-\begin{itemize}
-    \item Nessuna ridondanza: un guasto a qualsiasi Pod causa un'interruzione del servizio.
-    \item Nessun Ingress Controller: l'accesso esterno alle API avviene esclusivamente tramite \texttt{kubectl port-forward} diretto verso ogni singolo servizio.
-    \item Nessun load-balancing applicativo: non esiste alcun meccanismo per distribuire il carico tra istanze multiple in caso di picchi di traffico.
-\end{itemize}
-\end{mysection}
-
-\begin{mysection}{Infrastruttura con Ridondanza e Ingress}
-La seconda fase evolutiva dell'infrastruttura introduce due miglioramenti strutturali fondamentali: il \textbf{Kubernetes Ingress} e le \textbf{repliche multiple} per i servizi stateless critici.
-
-\subsubsection*{Analisi della criticità e scelta delle repliche}
-La suddivisione logica del sistema in quattro layer guida la scelta delle repliche:
-
-\begin{itemize}
-    \item \textbf{Frontend (nginx):} Stateless. 2 repliche per garantire disponibilità durante aggiornamenti o guasti di un Pod.
-    \item \textbf{Logica di Business (auth, inventory, order):} Completamente stateless (lo stato risiede nel database). 3 repliche ciascuno, poiché questi servizi sono i punti di maggior stress durante accessi concorrenti: autenticazione simultanea di più utenti, letture/scritture sull'inventario, elaborazione parallela di ordini.
-    \item \textbf{Database (postgres):} Rimane a 1 replica. La scalabilità orizzontale di un RDBMS relazionale richiede soluzioni architetturali dedicate (es. pgBouncer per il connection pooling, read-replica per le query di lettura, o servizi gestiti come Amazon RDS in produzione).
-\end{itemize}
-
-Il \texttt{Service} \texttt{ClusterIP} di Kubernetes funge automaticamente da \textbf{load-balancer interno}, distribuendo le richieste in modalità round-robin tra tutti i Pod attivi dello stesso Deployment.
-
-Tutti i container dei servizi Flask sono inoltre dotati di \texttt{resources} (requests e limits) per evitare il problema del \textit{noisy neighbor}: un Pod che consuma risorse eccessive non può degradare le prestazioni degli altri in esecuzione sullo stesso nodo fisico.
-
-\subsubsection*{Kubernetes Ingress Controller}
-L'Ingress è un oggetto Kubernetes che agisce come \textbf{reverse proxy} HTTP a livello di cluster. Con un unico indirizzo IP esposto al pubblico, l'Ingress Controller (basato su NGINX) instrada le richieste verso il servizio backend corretto in base al prefisso del percorso URL, eliminando la necessità di port-forward multipli.
-
-Le rotte implementate rispecchiano la suddivisione logica dell'API:
-
-\begin{itemize}
-    \item \texttt{/} $\rightarrow$ \texttt{frontend-service} --- serve le interfacce HTML statiche (cliente e amministratore).
-    \item \texttt{/api/auth/} $\rightarrow$ \texttt{auth-service:5001} --- endpoint di autenticazione, registrazione e gestione utenti.
-    \item \texttt{/api/inventory/} $\rightarrow$ \texttt{inventory-service:5002} --- endpoint catalogo, articoli e giacenze.
-    \item \texttt{/api/orders/} $\rightarrow$ \texttt{order-service:5003} --- endpoint ordini, storico e logistica.
-\end{itemize}
 
 
-
-\textbf{TODO: Inserire qui lo screenshot dell'output di \texttt{kubectl get ingress} e \texttt{kubectl get pods} con le repliche attive.}
-\end{mysection}
-
-\begin{mysection}{Guida all'Avvio}
-
-\subsubsection*{Fase 1 -- Avvio Barebone}
-\begin{lstlisting}[language=bash, caption={Avvio infrastruttura Barebone}]
-# Build immagini Docker (dalla root del progetto)
-docker build -t cpiac_frontend:v6 -f frontend/Dockerfile frontend/
-docker build -t cpiac_auth:v6     -f microservices/auth_service/Dockerfile .
-docker build -t cpiac_inventory:v6 -f microservices/inventory_service/Dockerfile .
-docker build -t cpiac_order:v6    -f microservices/order_service/Dockerfile .
-
-# Deploy di tutte le risorse Kubernetes
-kubectl apply -f k8s/
-
-# Port-forward per accesso locale (alternativa all'Ingress)
-kubectl port-forward svc/auth-service      5001:5001 &
-kubectl port-forward svc/inventory-service 5002:5002 &
-kubectl port-forward svc/order-service     5003:5003 &
-
-kubectl get pods  # Verifica stato
-\end{lstlisting}
-
-\subsubsection*{Fase 2 -- Avvio con Ridondanza e Ingress}
-\begin{lstlisting}[language=bash, caption={Avvio infrastruttura con repliche e Ingress}]
-# (Una-tantum) Installazione NGINX Ingress Controller
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/\
-controller-v1.10.0/deploy/static/provider/cloud/deploy.yaml
-
-# Deploy delle risorse base (escludendo ingress.yaml di default per AWS)
-kubectl apply -f k8s/postgres-pv-pvc.yaml
-kubectl apply -f k8s/postgres-configmap.yaml
-kubectl apply -f k8s/postgres-deployment.yaml
-kubectl apply -f k8s/postgres-service.yaml
-kubectl apply -f k8s/frontend-deployment.yaml
-kubectl apply -f k8s/frontend-service.yaml
-kubectl apply -f k8s/auth-deployment.yaml
-kubectl apply -f k8s/auth-service.yaml
-kubectl apply -f k8s/inventory-deployment.yaml
-kubectl apply -f k8s/inventory-service.yaml
-kubectl apply -f k8s/order-deployment.yaml
-kubectl apply -f k8s/order-service.yaml
-
-# Applicazione dell'Ingress specifico locale compatibile con NGINX
-kubectl apply -f k8s/ingress-local.yaml
-
-# (Opzionale) Scalare i pod a 1 replica in caso di limitazioni CPU in locale
-kubectl scale deployment frontend auth-service inventory-service order-service --replicas=1
-
-# Verifica repliche e stato Ingress
-kubectl get pods
-kubectl get ingress
-
-# Accesso via browser: Naviga utilizzando l'indirizzo esposto dall'Ingress (localhost o l'IP ottenuto)
-\end{lstlisting}
-
-Per azzerare e ricreare l'intera infrastruttura da zero (ad esempio dopo una modifica strutturale al database):
-\begin{lstlisting}[language=bash, caption={Reset completo del cluster}]
-kubectl delete -f k8s/
-sleep 5
-kubectl apply -f k8s/
-\end{lstlisting}
-\end{mysection}
 
 \end{mychapter}
 

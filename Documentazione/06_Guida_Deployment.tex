@@ -1,0 +1,150 @@
+\begin{mychapter}{Guide al Deployment}
+
+\begin{mysection}{Deployment in Ambiente Locale}
+
+\subsubsection*{Fase 1 -- Avvio Barebone}
+\begin{lstlisting}[language=bash, caption={Avvio infrastruttura Barebone}]
+# Build immagini Docker (dalla root del progetto)
+docker build -t cpiac_frontend:v6 -f frontend/Dockerfile frontend/
+docker build -t cpiac_auth:v6     -f microservices/auth_service/Dockerfile .
+docker build -t cpiac_inventory:v6 -f microservices/inventory_service/Dockerfile .
+docker build -t cpiac_order:v6    -f microservices/order_service/Dockerfile .
+
+# Deploy di tutte le risorse Kubernetes
+kubectl apply -f k8s/
+
+# Port-forward per accesso locale (alternativa all'Ingress)
+kubectl port-forward svc/auth-service      5001:5001 &
+kubectl port-forward svc/inventory-service 5002:5002 &
+kubectl port-forward svc/order-service     5003:5003 &
+
+kubectl get pods  # Verifica stato
+\end{lstlisting}
+
+\subsubsection*{Fase 2 -- Avvio con Ridondanza e Ingress}
+\begin{lstlisting}[language=bash, caption={Avvio infrastruttura con repliche e Ingress}]
+# (Una-tantum) Installazione NGINX Ingress Controller
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/\
+controller-v1.10.0/deploy/static/provider/cloud/deploy.yaml
+
+# Deploy delle risorse base (escludendo ingress.yaml di default per AWS)
+kubectl apply -f k8s/postgres-pv-pvc.yaml
+kubectl apply -f k8s/postgres-configmap.yaml
+kubectl apply -f k8s/postgres-deployment.yaml
+kubectl apply -f k8s/postgres-service.yaml
+kubectl apply -f k8s/frontend-deployment.yaml
+kubectl apply -f k8s/frontend-service.yaml
+kubectl apply -f k8s/auth-deployment.yaml
+kubectl apply -f k8s/auth-service.yaml
+kubectl apply -f k8s/inventory-deployment.yaml
+kubectl apply -f k8s/inventory-service.yaml
+kubectl apply -f k8s/order-deployment.yaml
+kubectl apply -f k8s/order-service.yaml
+
+# Applicazione dell'Ingress specifico locale compatibile con NGINX
+kubectl apply -f k8s/ingress-local.yaml
+
+# (Opzionale) Scalare i pod a 1 replica in caso di limitazioni CPU in locale
+kubectl scale deployment frontend auth-service inventory-service order-service --replicas=1
+
+# Verifica repliche e stato Ingress
+kubectl get pods
+kubectl get ingress
+
+# Accesso via browser: Naviga utilizzando l'indirizzo esposto dall'Ingress (localhost o l'IP ottenuto)
+\end{lstlisting}
+
+Per azzerare e ricreare l'intera infrastruttura da zero (ad esempio dopo una modifica strutturale al database):
+\begin{lstlisting}[language=bash, caption={Reset completo del cluster}]
+kubectl delete -f k8s/
+sleep 5
+kubectl apply -f k8s/
+\end{lstlisting}
+\end{mysection}
+
+\begin{mysection}{Deployment in AWS tramite Infrastructure-as-Code (Terraform)}
+
+\textbf{Configurazione IAM per Terraform:}\\
+Per il corretto provisioning, è richiesto un utente programmatico in AWS IAM
+
+Durante la generazione delle \textit{Access Key}, selezionare lo Use Case \textbf{Command Line Interface (CLI)}, poiché Terraform interagisce con le API di AWS in modalità terminale.
+
+I passi per eseguire lo script sono i seguenti:
+\begin{enumerate}
+    \item \textbf{Generazione Chiave SSH:} Terraform richiede l'esistenza di una chiave SSH locale per l'autenticazione remota sui server. Se non si possiede già una chiave, generarne una eseguendo da terminale il comando: \texttt{ssh-keygen -t rsa -b 4096 -f \textasciitilde{}/.ssh/id\_rsa}.
+    \item \textbf{Configurazione Credenziali AWS:} Eseguire \texttt{aws configure} per configurare la CLI con le \textit{Access Keys} ottenute.
+
+    \item \textbf{Inizializzazione:} Eseguire \texttt{terraform init}.
+
+    \item \textbf{Verifica e Applicazione:} Eseguire \texttt{terraform plan} e infine \texttt{terraform apply}.
+
+\end{enumerate}
+
+\textbf{Accesso Remoto e Deploy Applicativo:}\\
+Al termine dell'esecuzione di Terraform, verranno stampati a video il DNS name dell'ALB e gli IP Pubblici delle due istanze EC2. 
+L'infrastruttura a questo punto è in esecuzione, ma le applicazioni devono ancora essere deployate. I passaggi sono:
+\begin{itemize}
+    \item \textbf{Accesso SSH:} Collegarsi in SSH alle macchine tramite i seguenti comandi (basati sull'output di Terraform):
+    \begin{itemize}
+        \item \textbf{Nodo Clienti:} \texttt{ssh -i \textasciitilde{}/.ssh/id\_rsa ubuntu@<IP\_CLIENTI>}
+        \item \textbf{Nodo Admin:} \texttt{ssh -i \textasciitilde{}/.ssh/id\_rsa ubuntu@<IP\_ADMIN>}
+    \end{itemize}
+    \item \textbf{Clone Selettivo (Sparse-Checkout):} Per evitare di scaricare file inutili ai fini del deploy (come questa documentazione o i file Terraform), utilizzare i seguenti comandi su entrambi i nodi:
+    \begin{verbatim}
+    git clone --no-checkout <TUO_URL_GIT>
+    cd CPIAC_Scalamarket
+    git sparse-checkout init --cone
+    git sparse-checkout set frontend init-scripts microservices k8s
+    git checkout main
+    \end{verbatim}
+    \item \textbf{Deploy K8s - Nodo Clienti:} (Assicurarsi di essere nella cartella \texttt{CPIAC\_Scalamarket}). Poiché su AWS i servizi sono distribuiti su due nodi indipendenti, il servizio ordini ha bisogno di conoscere l'indirizzo pubblico del bilanciatore per comunicare con l'inventario (mentre in un ambiente \texttt{--LOCAL} comunicherebbero tramite DNS interno). Sostituendo \texttt{URL\_ALB} con l'indirizzo del tuo Load Balancer, esegui:
+    \begin{verbatim}
+    sed -i "s|value: \"http://inventory-service:5002\"|value: \"http://<URL_ALB>/api/inventory\"|g" k8s/order-deployment.yaml
+    
+    sudo docker build -t cpiac_frontend:v6 -f frontend/Dockerfile frontend/
+    sudo docker build -t cpiac_auth:v6    -f microservices/auth_service/Dockerfile .
+    sudo docker build -t cpiac_order:v6   -f microservices/order_service/Dockerfile .
+
+    sudo docker save cpiac_frontend:v6 cpiac_auth:v6 cpiac_order:v6 > clients_images.tar
+    sudo k3s ctr images import clients_images.tar
+
+    sudo kubectl apply -f k8s/postgres-pv-pvc.yaml
+    sudo kubectl apply -f k8s/postgres-configmap.yaml
+    sudo kubectl apply -f k8s/postgres-deployment.yaml
+    sudo kubectl apply -f k8s/postgres-service.yaml
+
+    sudo kubectl apply -f k8s/frontend-deployment.yaml
+    sudo kubectl apply -f k8s/frontend-service.yaml
+    sudo kubectl apply -f k8s/auth-deployment.yaml
+    sudo kubectl apply -f k8s/auth-service.yaml
+    sudo kubectl apply -f k8s/order-deployment.yaml
+    sudo kubectl apply -f k8s/order-service.yaml
+    sudo kubectl apply -f k8s/ingress.yaml
+    \end{verbatim}
+    
+    \item \textbf{Deploy K8s - Nodo Admin:}
+    \begin{verbatim}
+    sudo docker build -t cpiac_inventory:v6 -f microservices/inventory_service/Dockerfile .
+
+    sudo docker save cpiac_inventory:v6 > admin_images.tar
+    sudo k3s ctr images import admin_images.tar
+
+    sudo kubectl apply -f k8s/postgres-pv-pvc.yaml
+    sudo kubectl apply -f k8s/postgres-configmap.yaml
+    sudo kubectl apply -f k8s/postgres-deployment.yaml
+    sudo kubectl apply -f k8s/postgres-service.yaml
+
+    sudo kubectl apply -f k8s/inventory-deployment.yaml
+    sudo kubectl apply -f k8s/inventory-service.yaml
+    sudo kubectl apply -f k8s/ingress.yaml
+    \end{verbatim}
+
+
+    \item \textbf{Navigazione:} Accedere dal browser non tramite gli IP delle macchine, ma tramite l'URL fornito dall'Application Load Balancer (es. \texttt{http://<URL\_ALB>}). L'ALB smisterà automaticamente il traffico basandosi sul \textit{path} dell'URL.
+\end{itemize}
+
+\end{mysection}
+
+
+
+\end{mychapter}

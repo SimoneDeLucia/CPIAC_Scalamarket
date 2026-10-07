@@ -1,47 +1,47 @@
 \begin{mychapter}{Proposte di Integrazione e Sviluppo Futuro}
 
-Questo capitolo presenta le proposte per l'evoluzione dell'architettura e per l'esecuzione di test prestazionali.
+Questo capitolo presenta le proposte per l'evoluzione dell'architettura e per l'esecuzione di test prestazionali atti a validare le scelte implementative.
 
-\begin{mysection}{Panoramiche sull'utilizzo in locale (On-Premise / Edge Computing)}
-L'architettura a microservizi basata su K3s (una versione leggera di Kubernetes) \`e perfetta per essere eseguita anche al di fuori del Cloud, sfruttando l'hardware locale. 
+\begin{mysection}{Integrazioni Edge Computing e Scaling On-Premise}
+L'architettura a microservizi basata su K3s (una versione leggera di Kubernetes) \`e intrinsecamente flessibile, rendendosi adatta non solo al Cloud ma anche ad ambienti ibridi o puramente locali, consentendo l'integrazione con dispositivi IoT periferici.
 
-\subsubsection*{Scenario A: Cluster On-Premise con PC Fissi e Portatili}
-Invece di usare macchine virtuali su AWS, \`e possibile creare un \textbf{cluster fisico locale}.
+\subsubsection*{Scenario A: Scaling in un Cluster On-Premise}
+Invece di fare affidamento unicamente su istanze Cloud come su AWS, \`e possibile sfruttare la natura distribuita di Kubernetes per scalare orizzontalmente all'interno di un \textbf{cluster fisico locale} (On-Premise). 
 \begin{itemize}
-    \item \textbf{Come funziona:} Un PC desktop mediamente potente viene designato come \textbf{Master Node} (Control Plane). Si collegano poi alla stessa rete LAN 2 o 3 portatili che fungeranno da \textbf{Worker Node}. 
-    \item \textbf{Vantaggi didattici e operativi:} Questo scenario simula perfettamente un vero Data Center aziendale. Permette di dimostrare l'\textbf{High Availability (HA)} spegnendo fisicamente un portatile (simulando un guasto hardware) e osservando Kubernetes che riavvia i Pod (i microservizi) sugli altri nodi superstiti.
+    \item Un PC desktop mediamente potente può essere designato come \textbf{Master Node} (Control Plane). Si possono poi collegare alla stessa rete LAN 2 o 3 portatili o macchine meno performanti che fungeranno da \textbf{Worker Node}.
+    \item \textbf{Vantaggi di scalabilità e resilienza:} Questo approccio permette di aggiungere o rimuovere potenza di calcolo (scalando orizzontalmente i Worker) a seconda delle necessità. In caso di guasto di una macchina, è possibile osservare in tempo reale come Kubernetes intervenga per riavviare i Pod (i microservizi) sui nodi superstiti, mantenendo il servizio pienamente operativo.
 \end{itemize}
 
-\subsubsection*{Scenario B: Utilizzo di microcontrollori (ESP32 / ESP8266) nel sistema}
-Schede come l'ESP32 o l'ESP8266 \textbf{non hanno i requisiti minimi} per eseguire Docker o Kubernetes, avendo risorse di memoria estremamente limitate. Tuttavia, si integrano perfettamente nel sistema agendo da \textbf{IoT Edge Devices} (dispositivi periferici).
+\subsubsection*{Scenario B: Integrazione di dispositivi Edge Computing (ESP32 / ESP8266)}
+Per migliorare ulteriormente il progetto Scalamarket connettendolo al mondo reale, si propone l'integrazione di microcontrollori economici come l'ESP32 o l'ESP8266. Pur non potendo eseguire internamente Docker o Kubernetes per via delle limitate risorse hardware, queste schede sono perfette per agire da \textbf{IoT Edge Devices}.
+Possono raccogliere dati fisici e interagire direttamente con i microservizi esposti dal cluster:
 \begin{itemize}
-    \item \textbf{Casi d'uso pratici per Scalamarket:}
-    \begin{enumerate}
-        \item \textbf{Lettore di codici a barre Smart (Warehouse):} Un ESP32 collegato a un modulo scanner. Quando l'operatore di filiale scansiona una merce, l'ESP32 invia una richiesta HTTP \texttt{POST} via Wi-Fi direttamente a \texttt{/api/inventory/} per aggiornare il database delle scorte in tempo reale.
-        \item \textbf{Monitoraggio Flotta (Veicoli):} Un ESP8266 installato sui mezzi logistici, dotato di modulo GPS, esegue chiamate REST periodiche verso l'\texttt{order-service} per aggiornare la posizione del mezzo e lo stato della consegna.
-    \end{enumerate}
+    \item \textbf{Lettore di codici a barre Smart (Warehouse):} Un ESP32 collegato a un modulo ottico scanner può essere utilizzato dagli operatori in magazzino. Alla scansione di una merce, il dispositivo edge invia una richiesta HTTP \texttt{POST} via Wi-Fi direttamente all'endpoint \texttt{/api/inventory/}, aggiornando le scorte nel database in tempo reale senza dover passare per un'interfaccia web o macchine intermedie.
+    \item \textbf{Monitoraggio Flotta (Veicoli):} Un ESP8266 dotato di modulo GPS, installato sui mezzi logistici, può eseguire chiamate REST periodiche verso l'\texttt{order-service}. Questo consente il tracciamento dinamico della posizione del mezzo e l'aggiornamento automatico dello stato della consegna, offrendo un tracking preciso ai clienti.
 \end{itemize}
 \end{mysection}
 
-\begin{mysection}{Benchmark Prestazionali (Richieste/sec)}
-Per testare l'efficacia della scalabilit\`a introdotta nella piattaforma, si propone l'utilizzo di strumenti gratuiti per load testing come \textbf{Locust} (basato su Python) o \textbf{Apache Bench (ab)}.
+\begin{mysection}{Benchmark Prestazionali: Cloud vs Locale}
+Per valutare in maniera oggettiva l'efficacia del deployment e comprendere in quali scenari una soluzione in locale (On-Premise) possa risultare più conveniente e performante rispetto a una soluzione Cloud su AWS, si propone l'utilizzo di strumenti di load testing come \textbf{Locust} o \textbf{Apache Bench (ab)}.
+
+Eseguire i seguenti test in entrambi gli ambienti (AWS e On-Premise locale) consentirà di generare metriche comparative affidabili:
 
 \subsubsection*{Test 1: Sfogliare il Catalogo (Read-Intensive)}
 \begin{itemize}
-    \item \textbf{Azione:} Effettuare migliaia di chiamate \texttt{GET /api/inventory/} per scaricare la lista dei prodotti.
-    \item \textbf{Obiettivo:} Misurare le \textbf{RPS (Richieste per Secondo)} massime che il sistema riesce a servire restando sotto i 200 millisecondi di latenza.
+    \item \textbf{Azione:} Generare un volume massivo di chiamate \texttt{GET /api/inventory/} per richiedere la lista dei prodotti.
+    \item \textbf{Obiettivo Comparativo:} Misurare le \textbf{RPS (Richieste per Secondo)} massime gestibili mantenendo una latenza inferiore ai 200 millisecondi. Risulterà evidente se l'overhead di rete del Cloud giustifichi i costi rispetto alle alte prestazioni a latenza zero di una rete LAN locale.
 \end{itemize}
 
 \subsubsection*{Test 2: Inserimento Ordini (Write-Intensive e Logica)}
 \begin{itemize}
-    \item \textbf{Azione:} Effettuare chiamate \texttt{POST /api/orders/} con payload JSON validi, simulando centinaia di clienti che effettuano il checkout contemporaneamente.
-    \item \textbf{Obiettivo:} Valutare come si comporta il sistema sotto stress in presenza di transazioni sul database e logica condizionale di allocazione. Confrontando la fase Barebone (1 Pod) con la fase Scalabile (3 Pod), si evidenzier\`a il reale impatto dello scaling orizzontale.
+    \item \textbf{Azione:} Simulazione di un checkout di massa (es. Black Friday) inviando contemporaneamente centinaia di richieste \texttt{POST /api/orders/}.
+    \item \textbf{Obiettivo Comparativo:} Analizzare la reattività del database e la corretta esecuzione della logica condizionale. Questo benchmark confermerà se l'architettura su nodi Cloud \textit{general purpose} riesce a superare un server locale ottimizzato per scritture (ad esempio dotato di SSD NVMe). Servirà anche a verificare l'efficacia della replicazione orizzontale a 3 Pod.
 \end{itemize}
 
-\subsubsection*{Test 3: Spike Test (Picco Improvviso)}
+\subsubsection*{Test 3: Spike Test (Picco Improvviso di traffico)}
 \begin{itemize}
-    \item \textbf{Azione:} Aumentare bruscamente gli utenti concorrenti (da 10 a 1000 in pochi secondi) su tutte le API.
-    \item \textbf{Obiettivo:} Verificare se l'Ingress restituisce errori 502/503/504 per proteggere i Pod da crolli (OOM).
+    \item \textbf{Azione:} Incremento istantaneo degli utenti concorrenti (da 10 a 1000 in una frazione di secondo) su tutte le API.
+    \item \textbf{Obiettivo Comparativo:} Testare i limiti dell'Ingress Controller (NGINX in locale vs Traefik/ALB su AWS) e la sua capacità di resistere ai colli di bottiglia, restituendo codici di errore (502/503) per proteggere i Pod da esaurimento memoria (OOM), o scalando tempestivamente se integrato con metriche HPA.
 \end{itemize}
 
 \end{mysection}
