@@ -71,7 +71,7 @@ I componenti base dell'applicativo sono i seguenti:
     \item \textbf{postgres}: Database centrale con storage persistente garantito da un \texttt{PersistentVolume} (PV) e un \texttt{PersistentVolumeClaim} (PVC), logicamente frammentato in 3 database separati.
 \end{itemize}
 
-\subsubsection*{Ridondanza e Scalabilità}
+\begin{mysubsection}{Ridondanza e Scalabilità}
 I servizi stateless (Frontend e Logica di Business) sono stati configurati con repliche multiple, distribuite automaticamente dal \texttt{Service} \texttt{ClusterIP} che funge da load-balancer interno:
 \begin{itemize}
     \item \textbf{Frontend (nginx):} 2 repliche per garantire alta disponibilità durante aggiornamenti o guasti di un Pod.
@@ -80,8 +80,9 @@ I servizi stateless (Frontend e Logica di Business) sono stati configurati con r
 \end{itemize}
 
 Tutti i container Flask sono inoltre dotati di \texttt{resources} (requests e limits) per evitare che un consumo anomalo da parte di un Pod degradi le prestazioni degli altri (\textit{noisy neighbor}).
+\end{mysubsection}
 
-\subsubsection*{Kubernetes Ingress Controller}
+\begin{mysubsection}{Kubernetes Ingress Controller}
 L'accesso esterno e il routing dei servizi avvengono tramite un \textbf{Kubernetes Ingress Controller} (basato su NGINX) che agisce da \textit{reverse proxy} HTTP a livello di cluster. Attraverso un unico indirizzo esposto al pubblico, elimina la necessità di port-forward multipli. Le rotte principali implementate sono:
 \begin{itemize}
     \item \texttt{/} $\rightarrow$ \texttt{frontend-service:8080}
@@ -91,15 +92,23 @@ L'accesso esterno e il routing dei servizi avvengono tramite un \textbf{Kubernet
 \end{itemize}
 
 \textit{Nota: Si rimanda al quarto capitolo per un analisi più dettagliata delle rotte implementate e quali richieste vengono gestite da ciascuna di esse.}
+\end{mysubsection}
 
-\subsubsection*{Analisi dei Manifest Kubernetes}
-L'architettura descritta è governata da una serie di manifest Kubernetes (file YAML) che dichiarano in maniera esplicita lo stato desiderato dell'infrastruttura.
+\begin{mysubsection}{Analisi dei Manifest Kubernetes}
+L'architettura descritta è governata da una serie di manifest Kubernetes (file YAML) che dichiarano in maniera esplicita lo stato desiderato dell'infrastruttura. Di seguito l'analisi dettagliata dei file che compongono il deployment:
 
 \begin{itemize}
-    \item \textbf{Ingress Locale (\texttt{ingress-local.yaml}):} Definisce le regole di instradamento specificando la \textit{ingressClassName} \texttt{nginx}. La risorsa si suddivide in blocchi \texttt{rules} che incanalano le chiamate ai backend giusti.
-    \item \textbf{Deployment di un Microservizio (es. \texttt{order-deployment.yaml}):} Illustra le \textit{best-practice} del deployment stateless in Kubernetes. Specifica \texttt{replicas: 3}, \texttt{imagePullPolicy} e l'iniezione delle \texttt{env} necessarie (come la stringa di connessione DB). Impone infine limiti rigidi sulle \texttt{resources.requests} e \texttt{resources.limits} di CPU/RAM.
-    \item \textbf{Deployment del Database (\texttt{postgres-deployment.yaml}):} A differenza dei precedenti, usa i \textit{Volumes}. Integra \texttt{volumeMounts} per i dati nel path \texttt{/var/lib/postgresql/data} collegati a un PVC. Inietta inoltre un \texttt{ConfigMap} nel path \texttt{/docker-entrypoint-initdb.d} per creare i database automaticamente all'avvio.
+    \item \textbf{ConfigMap e Storage (\texttt{postgres-configmap.yaml}, \texttt{postgres-pv-pvc.yaml}):} Il primo fornisce al database gli script SQL necessari per l'inizializzazione automatica delle tabelle al primo avvio. Il secondo definisce le risorse di archiviazione persistente (Persistent Volume Claim), essenziali per evitare la perdita di dati al riavvio del container PostgreSQL.
+    
+    \item \textbf{Database (\texttt{postgres-deployment.yaml}, \texttt{postgres-service.yaml}):} Il deployment gestisce l'istanza PostgreSQL collegandovi il volume persistente e il ConfigMap. Il Service espone internamente il database sulla porta 5432, permettendo ai microservizi di collegarsi tramite il nome host del servizio stesso.
+    
+    \item \textbf{Servizi di Backend (\texttt{auth-*, inventory-*, order-*}):} Per ciascun microservizio sono definiti un \textit{Deployment} e un \textit{Service}. Il \textit{Deployment} specifica l'immagine Docker da prelevare, il numero di repliche desiderate (garantendo l'alta affidabilità) e inietta le variabili d'ambiente necessarie (come le credenziali del database). Inoltre, impone vincoli rigidi sulle risorse hardware richieste e sui limiti massimi (CPU e RAM) per evitare colli di bottiglia. Il \textit{Service} funge da bilanciatore di carico interno, esponendo i Pod sulla rete del cluster.
+    
+    \item \textbf{Interfaccia Utente (\texttt{frontend-deployment.yaml}, \texttt{frontend-service.yaml}):} Gestiscono l'applicazione web statica. Il deployment assicura che il server NGINX sia in esecuzione fornendo i file HTML/JS/CSS agli utenti, mentre il Service instrada le richieste HTTP in entrata verso i Pod del frontend.
+    
+    \item \textbf{Ingress Locale (\texttt{ingress-local.yaml}):} Agisce da punto di ingresso unico per le richieste provenienti dall'esterno del cluster. Si basa sul controller NGINX e si occupa di smistare il traffico. Ad esempio, le richieste destinate ai percorsi dell'inventario o degli ordini vengono incanalate verso i rispettivi servizi backend, mentre la radice viene diretta al Frontend, mascherando all'utente la complessità dell'infrastruttura sottostante.
 \end{itemize}
+\end{mysubsection}
 
 Di seguito viene riportato l'output dell'ambiente locale in esecuzione, che conferma lo stato \texttt{Running} di tutti i pod e la corretta visualizzazione della piattaforma dal browser locale.
 \end{mysection}

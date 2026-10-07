@@ -21,17 +21,20 @@ I file Terraform implementati (\texttt{main.tf}, \texttt{variables.tf}, \texttt{
     \label{fig:aws_arch}
 \end{figure}
 
-\textbf{Manifest Ingress per AWS (\texttt{ingress.yaml}):}\\
+\begin{mysubsection}{Manifest Ingress per AWS (\texttt{ingress.yaml})}
 A differenza del manifest locale (\texttt{ingress-local.yaml}) che si affida all'Ingress Controller NGINX, il file per l'infrastruttura AWS adotta \texttt{traefik} come \textit{ingressClassName}, in quanto Kubernetes K3s ne include il supporto predefinito risultando ideale e "leggero" per l'integrazione con l'Application Load Balancer sovrastante. Il manifest AWS differisce in modo sostanziale dal locale anche perché frammentato: separa in definizioni YAML del tutto distinte l'Ingress per la rotta inventario, auth, frontend e orders. Questo asseconda l'architettura a nodi separati implementata su AWS, poiché il cluster non è unificato: delegando l'instradamento di più alto livello all'ALB di Amazon Cloud, si ottiene un instradamento corretto senza la necessità di DNS interni complessi tra i due nodi.
+\end{mysubsection}
 
-\textbf{Load Balancing e Path-Based Routing:}\\
+\begin{mysubsection}{Load Balancing e Path-Based Routing}
 Al fine di separare le competenze mantenendo un singolo punto d'accesso, l'Application Load Balancer (ALB) è stato configurato per effettuare un \textit{Path-Based Routing}. Il traffico in entrata viene analizzato dall'ALB: le richieste dirette ai path \texttt{/admin*} e \texttt{/inventory*} vengono inoltrate automaticamente al \textit{Target Group} del nodo Admin (situato nella Subnet 2), mentre tutte le restanti richieste (di default) sono servite dal \textit{Target Group} del nodo Clienti (nella Subnet 1).
+\end{mysubsection}
 
-\textbf{Nota sulla configurazione delle credenziali IAM per Terraform:}\\
+\begin{mysubsection}{Configurazione delle credenziali IAM per Terraform}
 Per consentire a Terraform di effettuare il provisioning delle risorse su AWS, è necessario configurare correttamente un utente programmatico tramite IAM (Identity and Access Management). Seguendo le best practice illustrate nei tutorial di riferimento (come l'aggiunta dell'utente a un Gruppo IAM specifico), si consiglia di applicare al gruppo la policy predefinita \texttt{AdministratorAccess}. 
 Considerando che lo script Terraform necessita di orchestrare contemporaneamente VPC, Security Group, Istanze EC2, Application Load Balancer e impostazioni di Billing (per l'allarme budget), l'accesso amministratore garantisce un'esecuzione senza blocchi o errori di permessi per scopi didattici e di test. In scenari di produzione reali, tuttavia, andrebbe rigorosamente applicato il principio del privilegio minimo (Least Privilege), assemblando policy granulari (ad es. \texttt{AmazonEC2FullAccess}, \texttt{AmazonVPCFullAccess}, ecc.).
+\end{mysubsection}
 
-\textbf{Selezione dello Use Case per l'Access Key:}\\
+\begin{mysubsection}{Selezione dello Use Case per l'Access Key}
 Durante la procedura guidata di generazione della coppia di chiavi di accesso (\textit{Access Key} e \textit{Secret Access Key}) nella AWS Console, viene richiesto di specificare l'ambito di utilizzo (\textit{Use case}):
 \begin{itemize}
     \item L'opzione da selezionare è \textbf{Command Line Interface (CLI)}. Terraform, infatti, opera interfacciandosi con le API di AWS esattamente come un tool a riga di comando locale (o caricando le credenziali tramite l'AWS CLI configurata con \texttt{aws configure}, oppure leggendo i file \texttt{.aws/credentials} o variabili d'ambiente).
@@ -63,8 +66,9 @@ I passi per eseguire lo script sono i seguenti:
         \label{fig:terraform_apply}
     \end{figure}
 \end{enumerate}
+\end{mysubsection}
 
-\textbf{Accesso Remoto e Deploy Applicativo:}\\
+\begin{mysubsection}{Accesso Remoto e Deploy Applicativo}
 Al termine dell'esecuzione di Terraform, verranno stampati a video il DNS name dell'ALB e gli IP Pubblici delle due istanze EC2. 
 L'infrastruttura a questo punto è in esecuzione ma vanno deployate le applicazioni. 
 \begin{itemize}
@@ -93,6 +97,7 @@ L'infrastruttura a questo punto è in esecuzione ma vanno deployate le applicazi
     \caption{Architettura deployata e accessibile tramite Application Load Balancer AWS}
     \label{fig:platform_deployed}
 \end{figure}
+\end{mysubsection}
 \end{mysection}
 
 \end{mychapter}
