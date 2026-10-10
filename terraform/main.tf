@@ -93,6 +93,14 @@ resource "aws_security_group" "k8s_sg" {
   }
 
   ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
     description = "K8s API"
     from_port   = 6443
     to_port     = 6443
@@ -211,10 +219,73 @@ resource "aws_lb_target_group_attachment" "admin_attach" {
   port             = 80
 }
 
+# Certificato SSL/TLS importato su AWS Certificate Manager (ACM)
+resource "aws_acm_certificate" "alb_cert" {
+  count            = var.enable_https ? 1 : 0
+  private_key      = file("${path.module}/${var.private_key_path}")
+  certificate_body = file("${path.module}/${var.certificate_body_path}")
+
+  tags = {
+    Name = "scalamarket-alb-cert"
+  }
+}
+
+# Listener HTTP (Porta 80)
 resource "aws_lb_listener" "front_end" {
   load_balancer_arn = aws_lb.k8s_alb.arn
   port              = "80"
   protocol          = "HTTP"
+
+  # Se redirect_http_to_https = true, reindirizza tutto su HTTPS (443)
+  dynamic "default_action" {
+    for_each = var.enable_https && var.redirect_http_to_https ? [1] : []
+    content {
+      type = "redirect"
+
+      redirect {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+
+  # Se redirect_http_to_https = false, inoltra normalmente ai Clienti
+  dynamic "default_action" {
+    for_each = var.enable_https && var.redirect_http_to_https ? [] : [1]
+    content {
+      type             = "forward"
+      target_group_arn = aws_lb_target_group.k8s_tg_clients.arn
+    }
+  }
+}
+
+# Regola routing HTTP verso Admin per il catalogo/inventario
+resource "aws_lb_listener_rule" "admin_rule" {
+  count        = var.enable_https && var.redirect_http_to_https ? 0 : 1
+  listener_arn = aws_lb_listener.front_end.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.k8s_tg_admin.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/inventory*"]
+    }
+  }
+}
+
+# Listener HTTPS (Porta 443)
+resource "aws_lb_listener" "https" {
+  count             = var.enable_https ? 1 : 0
+  load_balancer_arn = aws_lb.k8s_alb.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = aws_acm_certificate.alb_cert[0].arn
 
   default_action {
     type             = "forward"
@@ -222,8 +293,10 @@ resource "aws_lb_listener" "front_end" {
   }
 }
 
-resource "aws_lb_listener_rule" "admin_rule" {
-  listener_arn = aws_lb_listener.front_end.arn
+# Regola routing HTTPS verso Admin per il catalogo/inventario
+resource "aws_lb_listener_rule" "admin_rule_https" {
+  count        = var.enable_https ? 1 : 0
+  listener_arn = aws_lb_listener.https[0].arn
   priority     = 100
 
   action {
